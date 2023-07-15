@@ -8,11 +8,13 @@
 #include <unistd.h>
 
 #include "common/ptr_offset_t.h"
+#include "platform.h"
+
 #include "dune.h"
 
 using namespace std::chrono_literals;
 
-constexpr bool dump_resources = true;
+constexpr bool dump_resources = false;
 
 #define FUNC_NAME printf("\e[7m=== %s:%d ===\e[m\n", __func__, __LINE__)
 #define TODO printf("\e[31;7m=== TODO: %s:%d ===\e[m\n", __func__, __LINE__)
@@ -37,6 +39,8 @@ void hexdump(const byte *p, int len, int offset = 0)
 		printf("\n");
 	}
 }
+
+App *g_app;
 
 /*
  * Data Segment
@@ -221,8 +225,9 @@ void dump_palette_ppm(const char *postfix, byte *pal)
  * Code Segment
  */
 
-int main(int argc, char **argv)
+int dune_main(App &app, int argc, char **argv)
 {
+	g_app = &app;
 	if (false) {
 		const int scale = 8;
 		const int w = 16 * scale;
@@ -251,6 +256,8 @@ int main(int argc, char **argv)
 
 	quitting = true;
 	timer_thread->join();
+
+	return 0;
 }
 
 void cs_0000_start()
@@ -648,7 +655,7 @@ void cs_c1ba_apply_palette(const byte *p)
 void cs_c4cd_gfx_copy_framebuf_to_screen() {
 	vga_1b7c_copy_framebuffer(ds_dbd8_framebuffer_screen, ds_dbd6_framebuffer_1);
 
-	dump_framebuffer_ppm("cs_c4cd_gfx_copy_framebuf_to_screen", ds_dbd8_framebuffer_screen, g_screen_palette);
+	// dump_framebuffer_ppm("cs_c4cd_gfx_copy_framebuf_to_screen", ds_dbd8_framebuffer_screen, g_screen_palette);
 	g_frame++;
 }
 
@@ -1767,7 +1774,8 @@ void vga_0a58_copy_pal_1_to_pal_2() {
 	memcpy(vga_02bf_palette_unapplied, vga_05bf_palette_unapplied, 3 * 256);
 }
 
-void vga_0a68_copy_pal_1_to_pal_2() {
+void vga_0a68_copy_pal_1_to_pal_2()
+{
 	vga_0a58_copy_pal_1_to_pal_2();
 }
 
@@ -1784,16 +1792,17 @@ void vga_0b0c()
 			memcpy(&g_screen_palette[3*i], &vga_05bf_palette_unapplied[3*i], 3);
 		}
 	}
+	g_app->update_palette(g_screen_palette);
 
 	memset(vga_01bf_palette_dirty_entries, 0, 256);
 }
 
 void vga_0b68_set_palette_to_screen(byte *pal, int start, int entries)
 {
-	// UNIMPLEMENTED: Wait for vsync
+	// g_app->wait_for_vsync();
 	// if (!vga_01bd_is_monochrome) {
-		// app.set_palette(pal, start, entries);
 		memcpy(&g_screen_palette[3 * start], &pal[3 * start], 3 * entries);
+		g_app->update_palette(g_screen_palette);
 		return;
 	// }
 
@@ -1813,16 +1822,21 @@ void vga_0c06_set_y_offset(uint8_t y)
 
 void vga_1b7c_copy_framebuffer(byte *dst, byte *src) {
 	memcpy(dst, src, 320 * 200);
+	if (dst == ds_dbd8_framebuffer_screen) {
+		g_app->update_screen(ds_dbd8_framebuffer_screen);
+	}
 }
 
 void vga_2572_wait_frame(std::atomic_uint16_t &timer, uint16_t start)
 {
+	g_app->wait_for_vsync();
+	return;
 	// if (!vga_01a1_no_vert_retrace) {
 		// app.update_screen();
 
-		dump_framebuffer_ppm("vga_2572_wait_frame-frame", ds_dbd8_framebuffer_screen, g_screen_palette);
+		// dump_framebuffer_ppm("vga_2572_wait_frame-frame", ds_dbd8_framebuffer_screen, g_screen_palette);
 		// dump_palette_ppm("vga_2572_wait_frame-pal", g_screen_palette);
-		g_frame++;
+		// g_frame++;
 
 		// return;
 	// }
@@ -1850,6 +1864,7 @@ void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *si,
 		break;
 	default:
 		TODO;
+		printf("Unhandled transition type 0x%02x\n", type);
 		// exit(0);
 	}
 }
@@ -1888,7 +1903,8 @@ void vga_264d(std::atomic_uint16_t &timer, uint16_t cx, uint8_t dh, uint8_t dl)
 	} while (--dl != 0);
 }
 
-void vga_26e3(std::atomic_uint16_t &timer, uint16_t ax, uint8_t fade_step_size, uint8_t fade_steps) {
+void vga_26e3(std::atomic_uint16_t &timer, uint16_t ax, uint8_t fade_step_size, uint8_t fade_steps)
+{
 	TODO;
 	ds_261b = ax;
 
@@ -1906,32 +1922,13 @@ void vga_26e3(std::atomic_uint16_t &timer, uint16_t ax, uint8_t fade_step_size, 
 	} while (--fade_steps != 0);
 }
 
-void vga_261d_maybe_wait_frame(std::atomic_uint16_t &timer, uint16_t start) {
+void vga_261d_maybe_wait_frame(std::atomic_uint16_t &timer, uint16_t start)
+{
 	vga_2572_wait_frame(timer, start);
 }
 
 void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer)
 {
-	// printf("vga_02bf_palette_unapplied:\n");
-	// for (int i = 0; i != 256; ++i) {
-	// 	printf(" %02x", vga_02bf_palette_unapplied[i].r);
-	// 	printf(" %02x", vga_02bf_palette_unapplied[i].g);
-	// 	printf(" %02x", vga_02bf_palette_unapplied[i].b);
-	// 	if (i % 8 == 7) {
-	// 		printf("\n");
-	// 	}
-	// }
-
-	// printf("vga_05bf_palette_unapplied:\n");
-	// for (int i = 0; i != 256; ++i) {
-	// 	printf(" %02x", vga_05bf_palette_unapplied[i].r);
-	// 	printf(" %02x", vga_05bf_palette_unapplied[i].g);
-	// 	printf(" %02x", vga_05bf_palette_unapplied[i].b);
-	// 	if (i % 8 == 7) {
-	// 		printf("\n");
-	// 	}
-	// }
-
 	for (int i = 1; i != 3*255; ++i) {
 		std::swap(vga_02bf_palette_unapplied[i], vga_05bf_palette_unapplied[i]);
 	}
