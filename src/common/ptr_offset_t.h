@@ -33,6 +33,10 @@ struct ptr_offset_t {
 
 	byte *begin() const { return m_begin; }
 
+	void set_offset(uint16_t offset) {
+		m_offset = offset;
+	}
+
 	int offset() const { return m_offset; }
 
 	void reset() {

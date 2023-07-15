@@ -14,9 +14,14 @@ uint8_t lo(uint16_t v) {
 typedef void (*stepfn)();
 
 struct RGB {
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
+	union {
+		struct {
+			uint8_t r;
+			uint8_t g;
+			uint8_t b;
+		};
+		uint8_t v[3];
+	};
 };
 
 struct Scene {
@@ -40,28 +45,37 @@ void  cs_0658_load_cryo2_hnm();
 void  cs_0661_play_cryo_hnm();
 void  cs_0945_intro_script_set_current_scene(Scene *scene);
 void  cs_0f66_nullsub();
+void  cs_3a7c();
+bool  cs_a2ef_is_pcm_enabled();
 void  cs_aa0f_decode_sound_block();
 void  cs_ad57_play_music_morning();
 void  cs_e594_initialize_system();
+void  cs_c07c_set_front_buffer_as_active_framebuffer();
 void  cs_c08e_set_screen_as_active_framebuffer();
+void  cs_c097_gfx_call_with_front_buffer_as_screen(void (*fn)(void));
 void  cs_c0ad_gfx_clear_active_framebuffer();
+void  cs_c07c_set_frontbuffer_as_active_framebuffer();
+void  cs_c0f4();
 void  cs_c13e_open_resource_by_index(int16_t index);
-void  cs_c180_transition();
+void  cs_c108_transition(int transition_type, void (*fn)());
 void  cs_c1aa_apply_bank_palette(const byte *p);
 void  cs_c1ba_apply_palette(const byte *p);
+void  cs_c4cd_gfx_copy_framebuf_to_screen();
 bool  cs_c92b_hnm_open_and_load_palette(uint16_t id);
 bool  cs_c93c_hnm_read_header();
 bool  cs_c9f4_hnm_do_frame_and_check_if_frame_advanced();
 void  cs_ca01_hnm_close_file();
 void  cs_ca1b_hnm_load(uint16_t id);
+void  cs_ca59();
 void  cs_ca60_hnm_do_frame();
 void  cs_ca8f();
 void  cs_ca9a_hnm_clear_flag();
 bool  cs_caa0();
-bool  cs_cad4_process_sound_block();
+bool  cs_cad4_wait_for_frame();
 void  cs_cb1a(/*ptr_offset_t &dst*/);
 void  cs_cc0c(ptr_offset_t &dst, uint16_t);
 bool  cs_cc2b(uint16_t block_size);
+uint16_t cs_cc4e();
 bool  cs_cc85_hnm_is_complete();
 void  cs_cc96_decode_video_block();
 void  cs_ccf4_hnm_decode_frame(ptr_offset_t c, uint16_t len, byte *dst);
@@ -100,11 +114,18 @@ void cs_f40d_unpack_hsq(byte *buffer, uint16_t unpacked_size);
 void cs_f435_unpack_no_header(ptr_offset_t &src, ptr_offset_t &dst);
 
 void vga_0967_set_graphics_mode();
+void vga_0975(bool monochrome);
 void vga_09d9_get_screen_buffer(byte **buffer, uint16_t *size);
 void vga_09e2_set_palette_unapplied(const byte *src, int byte_start, int len);
 void vga_0a21_pal_byte_offset_and_byte_count_to_index(uint16_t *offset, uint16_t *count);
-void vga_0b6b_set_palette_to_screen(RGB *pal, int start, int entries);
+void vga_0a58_copy_pal_1_to_pal_2();
+void vga_0a68_copy_pal_1_to_pal_2();
+void vga_0b0c();
+void vga_0b68_set_palette_to_screen(byte *pal, int start, int entries);
 void vga_0c06_set_y_offset(uint8_t y);
-void vga_257a_wait_frame(std::atomic_uint16_t &timer, uint16_t start);
-void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *src, uint8_t *dst);
-void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer, uint8_t *src, uint8_t *dst);
+void vga_1b7c_copy_framebuffer(byte *dst, byte *src);
+void vga_2572_wait_frame(std::atomic_uint16_t &timer, uint16_t start);
+void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *si, uint8_t *es, uint8_t *ds);
+void vga_261d_maybe_wait_frame(std::atomic_uint16_t &timer, uint16_t start);
+void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer);
+void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer);
