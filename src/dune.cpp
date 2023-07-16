@@ -268,17 +268,17 @@ void cs_0169_initialize_map()
 }
 
 Scene cs_0337_intro_script[] = {
-	{      0, cs_061c_load_virgin_hnm,                   0, 0x003a, cs_0625_play_virgin_hnm,       1 },
-	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,               1 },
-	{      0, cs_064d_load_cryo_hnm,                     0, 0x0030, cs_0661_play_cryo_hnm,         1 },
-	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,         1 },
-	{      0, cs_0f66_nullsub,                      0x00a8,      1, cs_0f66_nullsub,               1 },
-	{      0, cs_0678_load_present_hnm,                  0, 0x003a, cs_0684_play_present_hnm,      1 },
-	{      0, cs_cefc_load_irulan_hnm,                   0, 0x003a, cs_cf1b_play_irulan_hnm,       1 },
-    // {      0,      clear_screen,                           0, 0x003a, empty,                                  1 },
-    // {      0,      _sub_1069E_load_INTRO_HNM,              0, 0x0036, empty,                             0x0190 },
-    // {      0,      empty,                             0x0090, 0x0030, _sub_106AA_play_hnm_86_frames,     0x0190 },
-    // {      0,      empty,                             0x010c,     -1, _sub_106BD_play_hnm_skippable,          1 },
+	{      0, cs_061c_load_virgin_hnm,                   0, 0x003a, cs_0625_play_virgin_hnm,         1 },
+	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
+	{      0, cs_064d_load_cryo_hnm,                     0, 0x0030, cs_0661_play_cryo_hnm,           1 },
+	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,           1 },
+	{      0, cs_0f66_nullsub,                      0x00a8,      1, cs_0f66_nullsub,                 1 },
+	{      0, cs_0678_load_present_hnm,                  0, 0x003a, cs_0684_play_present_hnm,        1 },
+	{      0, cs_cefc_load_irulan_hnm,                   0, 0x003a, cs_cf1b_play_irulan_hnm,         1 },
+	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
+	{      0, cs_069e_load_intro_hnm,                    0, 0x0036, cs_0f66_nullsub,            0x0190 },
+	{      0, cs_0f66_nullsub,                      0x0090, 0x0030, cs_06aa_play_intro_hnm,     0x0190 },
+	{      0, cs_0f66_nullsub,                      0x010c,     -1, cs_06bd_play_hnm_skippable,      1 },
     // {      0,      sub_107FD,                              0, 0x003a, loc_1085D,                         0x04b0 },
     // { 0x0148,      sub_106CE,                         0x014e, 0x0010, sub_10704,                         0x1900 },
     // { 0x024b,      sub_10972,                         0x024e, 0x0010, empty,                             0x0085 },
@@ -352,10 +352,10 @@ restart_intro:
 
 		int32_t transition_type = ds_4854_intro_scene_current_scene->d;
 		// TODO: cs_de0c_check_midi();
-		if (transition_type) {
+		if (transition_type >= 0) {
 			// TODO;
 			cs_c108_transition(transition_type, cs_0f66_nullsub);
-			// cs_c0f4();
+			cs_c0f4();
 			// cs_3a7c();
 		}
 
@@ -384,7 +384,7 @@ void cs_061c_load_virgin_hnm()
 
 void cs_0625_play_virgin_hnm()
 {
-	cs_c07c_set_frontbuffer_as_active_framebuffer();
+	cs_c07c_set_front_buffer_as_active_framebuffer();
 	do {
 		do {
 			if (cs_dd63_has_user_input()) {
@@ -415,9 +415,7 @@ void cs_0658_load_cryo2_hnm()
 
 void cs_0661_play_cryo_hnm()
 {
-	FUNC_NAME;
-
-	cs_c07c_set_frontbuffer_as_active_framebuffer();
+	cs_c07c_set_front_buffer_as_active_framebuffer();
 	do {
 		do {
 			if (cs_dd63_has_user_input()) {
@@ -440,6 +438,22 @@ void cs_0684_play_present_hnm()
 {
 	// Tail-call
 	cs_06bd_play_hnm_skippable();
+}
+
+void cs_069e_load_intro_hnm()
+{
+	cs_c07c_set_front_buffer_as_active_framebuffer();
+	cs_0579_clear_global_y_offset();
+	cs_ca1b_hnm_load(15);
+}
+
+void cs_06aa_play_intro_hnm()
+{
+	cs_0579_clear_global_y_offset();
+	cs_c08e_set_screen_as_active_framebuffer();
+	do {
+		cs_c9e8_hnm_do_frame_skippable();
+	} while (ds_dbe8_hnm_frame_counter != 86);
 }
 
 void cs_06bd_play_hnm_skippable()
@@ -558,8 +572,11 @@ void cs_c0ad_gfx_clear_active_framebuffer()
 	memset(ds_dbda_framebuffer_active, 0, 64000);
 }
 
-void cs_c07c_set_frontbuffer_as_active_framebuffer() {
-	ds_dbda_framebuffer_active = ds_dbd6_framebuffer_1;
+void cs_c0f4()
+{
+	if (ds_dbd6_framebuffer_1 != ds_dbd8_framebuffer_screen) {
+		vga_0b0c();
+	}
 }
 
 void cs_c13e_open_resource_by_index(int16_t index)
