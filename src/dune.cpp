@@ -228,29 +228,6 @@ void dump_palette_ppm(const char *postfix, byte *pal)
 int dune_main(App &app, int argc, char **argv)
 {
 	g_app = &app;
-	if (false) {
-		const int scale = 8;
-		const int w = 16 * scale;
-		byte output[3 * w * w];
-		memset(output, 0, 3 * w * w);
-		for (int y = 0; y != w; ++y) {
-			for (int x = 0; x != w; ++x) {
-				int src = 16 * (y / scale) + (x / scale);
-				int dst = w * y + x;
-
-				output[3 * dst + 0] = ((255 * vga_05bf_palette_unapplied[3 * src + 0]) / 63);
-				output[3 * dst + 1] = ((255 * vga_05bf_palette_unapplied[3 * src + 1]) / 63);
-				output[3 * dst + 2] = ((255 * vga_05bf_palette_unapplied[3 * src + 2]) / 63);
-			}
-		}
-
-		char filename[256];
-		sprintf(filename, "ppm/vga_05bf_palette_unapplied.ppm");
-		FILE *f = fopen(filename, "wb");
-		fprintf(f, "P6\n%d %d 255\n", w, w);
-		fwrite(output, 3 * w * w, 1, f);
-		fclose(f);
-	}
 
 	cs_0000_start();
 
@@ -341,10 +318,13 @@ Scene cs_0337_intro_script[] = {
     // {      0,      clear_screen,                      0x08e0, 0x0038, empty,                                  1 },
 	{-1}};
 
+void cs_0579_clear_global_y_offset()
+{
+	vga_0c06_set_y_offset(0);
+}
+
 void cs_0580_play_intro()
 {
-	FUNC_NAME;
-
 restart_intro:
 	// TODO: cs_de54 check for keyboard esc
 
@@ -394,15 +374,8 @@ restart_intro:
 	TODO;
 }
 
-void cs_0945_intro_script_set_current_scene(Scene *scene)
-{
-	ds_4854_intro_scene_current_scene = scene;
-}
-
 void cs_061c_load_virgin_hnm()
 {
-	FUNC_NAME;
-
 	cs_ad57_play_music_morning();
 
 	// Tail-call
@@ -411,8 +384,6 @@ void cs_061c_load_virgin_hnm()
 
 void cs_0625_play_virgin_hnm()
 {
-	FUNC_NAME;
-
 	cs_c07c_set_frontbuffer_as_active_framebuffer();
 	do {
 		do {
@@ -428,7 +399,6 @@ void cs_0625_play_virgin_hnm()
 
 void cs_064d_load_cryo_hnm()
 {
-	FUNC_NAME;
 	// cs_ad95_play_music(0x0a);
 
 	// Tail-call
@@ -437,8 +407,6 @@ void cs_064d_load_cryo_hnm()
 
 void cs_0658_load_cryo2_hnm()
 {
-	FUNC_NAME;
-
 	cs_c0ad_gfx_clear_active_framebuffer();
 
 	// Tail-call
@@ -459,6 +427,11 @@ void cs_0661_play_cryo_hnm()
 
 		cs_c4cd_gfx_copy_framebuf_to_screen();
 	} while (!cs_cc85_hnm_is_complete());
+}
+
+void cs_0945_intro_script_set_current_scene(Scene *scene)
+{
+	ds_4854_intro_scene_current_scene = scene;
 }
 
 void cs_0f66_nullsub() {}
@@ -489,6 +462,7 @@ void cs_e594_initialize_system()
 	cs_e675_dat_open();
 
 	vga_09d9_get_screen_buffer(&ds_dbd8_framebuffer_screen, &ds_ce74_framebuffer_size);
+
 	cs_c08e_set_screen_as_active_framebuffer();
 	ds_dbdc_framebuffer_2 = (byte *)calloc(1, ds_ce74_framebuffer_size);
 	ds_dbd6_framebuffer_1 = (byte *)calloc(1, ds_ce74_framebuffer_size);
@@ -680,8 +654,6 @@ bool cs_c92b_hnm_open_and_load_palette(uint16_t id)
 
 bool cs_c93c_hnm_read_header()
 {
-	FUNC_NAME;
-
 	ds_dc02_hnm_open_id = ds_dc00_hnm_id;
 	Resource *res = cs_c921_hnm_get_resource_by_id(ds_dc00_hnm_id);
 
