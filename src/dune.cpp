@@ -268,13 +268,13 @@ void cs_0169_initialize_map()
 }
 
 Scene cs_0337_intro_script[] = {
-	{0, cs_061c_load_virgin_hnm, 0, 0x003a, cs_0625_play_virgin_hnm, 1},
-	{0, cs_c0ad_gfx_clear_active_framebuffer, 0, 0x003a, cs_0f66_nullsub, 1},
-	{0, cs_064d_load_cryo_hnm, 0, 0x0030, cs_0661_play_cryo_hnm, 1},
-	{0, cs_0658_load_cryo2_hnm, 0x006f, 0x0030, cs_0661_play_cryo_hnm, 1},
-	{0, cs_0f66_nullsub, 0x00a8, -1, cs_0f66_nullsub, 1},
-	// {      0,      _sub_10678_load_PRESENT_HNM,            0, 0x003a, _sub_10684_play_PRESENT_HNM,            1 },
-    // {      0,      _sub_1CEFC_load_IRULn_HSQ,              0, 0x003a, _sub_1CF1B_play_IRULx_HSQ,              1 },
+	{      0, cs_061c_load_virgin_hnm,                   0, 0x003a, cs_0625_play_virgin_hnm,       1 },
+	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,               1 },
+	{      0, cs_064d_load_cryo_hnm,                     0, 0x0030, cs_0661_play_cryo_hnm,         1 },
+	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,         1 },
+	{      0, cs_0f66_nullsub,                      0x00a8,      1, cs_0f66_nullsub,               1 },
+	{      0, cs_0678_load_present_hnm,                  0, 0x003a, cs_0684_play_present_hnm,      1 },
+	{      0, cs_cefc_load_irulan_hnm,                   0, 0x003a, cs_cf1b_play_irulan_hnm,       1 },
     // {      0,      clear_screen,                           0, 0x003a, empty,                                  1 },
     // {      0,      _sub_1069E_load_INTRO_HNM,              0, 0x0036, empty,                             0x0190 },
     // {      0,      empty,                             0x0090, 0x0030, _sub_106AA_play_hnm_86_frames,     0x0190 },
@@ -426,6 +426,30 @@ void cs_0661_play_cryo_hnm()
 		} while (!cs_c9f4_hnm_do_frame_and_check_if_frame_advanced());
 
 		cs_c4cd_gfx_copy_framebuf_to_screen();
+	} while (!cs_cc85_hnm_is_complete());
+}
+
+void cs_0678_load_present_hnm()
+{
+	cs_0579_clear_global_y_offset();
+	cs_c0ad_gfx_clear_active_framebuffer();
+	cs_ca1b_hnm_load(24);
+}
+
+void cs_0684_play_present_hnm()
+{
+	// Tail-call
+	cs_06bd_play_hnm_skippable();
+}
+
+void cs_06bd_play_hnm_skippable()
+{
+	cs_0579_clear_global_y_offset();
+	cs_c08e_set_screen_as_active_framebuffer();
+	do {
+		if (!cs_c9e8_hnm_do_frame_skippable()) {
+			return;
+		}
 	} while (!cs_cc85_hnm_is_complete());
 }
 
@@ -709,6 +733,18 @@ bool cs_c93c_hnm_read_header()
 	return true;
 }
 
+bool cs_c9e8_hnm_do_frame_skippable()
+{
+	cs_ca60_hnm_do_frame();
+	g_app->update_screen(ds_dbd8_framebuffer_screen);
+	if (cs_dd63_has_user_input()) {
+		return false;
+	}
+
+	// cs_de4e_clear_scancode();
+	return true;
+}
+
 static int wait_for_frame_counter = 0;
 
 bool cs_c9f4_hnm_do_frame_and_check_if_frame_advanced()
@@ -853,12 +889,11 @@ bool cs_caa0()
 	uint16_t tag = (ds_dc10_hnm_read_buffer + 2).readle16();
 
 	if (tag != HNM_TAG_MM && len > read_offset) {
-		TODO; exit(0);
 		return false;
 	}
 
 	byte *dst = ds_dbd6_framebuffer_1;
-	if (ds_dbfe_hnm_resource_flag & 0x400) {
+	if (ds_dbfe_hnm_resource_flag & 0x40) {
 		dst = ds_dbda_framebuffer_active;
 	}
 	cs_ccf4_hnm_decode_frame(c, len, dst);
@@ -1015,19 +1050,29 @@ void cs_cc96_decode_video_block()
 		if (ds_dc24_hnm_decode_frame_flags & 0x400) {
 			return;
 		}
-		// ccb9
-		uint16_t di = (src.readle16() & 0xf9ff);
-		uint16_t cx = src.readle16();
-		uint16_t dx = src.readle16();
-		uint16_t bx = src.readle16();
 
-		if (ds_dc00_hnm_id >= 25) {
-			printf("BLIT: id=%d di=0x%04x ch=%d cl=%d dx=%d bx=%d\n", ds_dc00_hnm_id, di, lo(cx), hi(cx), dx, bx);
-			TODO;
+		// ccb9
+		byte *dst = ds_dbda_framebuffer_active;
+
+		uint16_t di = (src.readle16() & 0xf9ff);
+		uint8_t flags = hi(di & 0xf800);
+		uint16_t width = di & 0x01ff;
+
+		uint16_t cx = src.readle16();
+		uint16_t mode   = hi(cx);
+		uint16_t height = lo(cx);
+
+		if (height == 0) {
+			return;
+		}
+
+		uint16_t dst_x = src.readle16();
+		uint16_t dst_y = src.readle16();
+
+		if (ds_dc00_hnm_id < 25) {
+			vga_0f5b_blit(dst, dst_x, dst_y, src, width, height, flags, mode);
 		} else {
-			printf("BLIT-explode: id=%d di=0x%04x ch=%d cl=%d dx=%d bx=%d\n", ds_dc00_hnm_id, di, lo(cx), hi(cx), dx,
-			       bx);
-			TODO;
+			vga_1bca_copy_interlaced(dst, dst_x, dst_y, src, width, height);
 		}
 		return;
 	}
@@ -1088,11 +1133,10 @@ void cs_ccf4_hnm_decode_frame(ptr_offset_t src, uint16_t len, byte *dst_ptr)
 		dst.writele16(tag);
 		dst.writele16(height_and_mode);
 		if (tag == 0) {
-			TODO; exit(0);
 			return;
 		}
 		if (!(tag & 0x200)) {
-			TODO; exit(0);
+			ds_dc14_hnm_decode_buffer = src - 4;
 		}
 	}
 
@@ -1214,6 +1258,28 @@ void cs_ceb0_hnm(uint16_t id)
 	// if ((r->alloc_size & 8)) {
 	// 	printf("\t\t\t0x%04x - %s\n", r->alloc_size, r->name);
 	// }
+}
+
+void  cs_cefc_load_irulan_hnm()
+{
+	TODO; // Load subtitles
+	vga_0c06_set_y_offset(0);
+	cs_c0ad_gfx_clear_active_framebuffer();
+	cs_ca1b_hnm_load(25);
+}
+
+void  cs_cf1b_play_irulan_hnm()
+{
+	byte *old_active_frame_buffer = ds_dbda_framebuffer_active;
+	cs_c08e_set_screen_as_active_framebuffer();
+
+	do {
+		if (!cs_c9e8_hnm_do_frame_skippable()) {
+			return;
+		}
+	} while (!cs_cc85_hnm_is_complete());
+
+	ds_dbda_framebuffer_active = old_active_frame_buffer;
 }
 
 bool cs_dd63_has_user_input()
@@ -1792,12 +1858,116 @@ void vga_0c06_set_y_offset(uint8_t y)
 	vga_01a3_y_offset = y;
 }
 
+void vga_1bca_copy_interlaced(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height)
+{
+	dst_y += vga_01a3_y_offset;
+
+	for (int y = 0; y != height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			dst[320 * (2*y + dst_y) + 2*(x + dst_x)] = src.ptr()[width * y + x];
+		}
+	}
+}
+
 void vga_1b7c_copy_framebuffer(byte *dst, byte *src) {
 	memcpy(dst, src, 320 * 200);
 	if (dst == ds_dbd8_framebuffer_screen) {
 		g_app->update_screen(ds_dbd8_framebuffer_screen);
 	}
 }
+
+void vga_0f5b_blit(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height, uint8_t flags, uint8_t mode)
+{
+	bool flip_x = flags & 0x20;
+	bool flip_y = flags & 0x40;
+
+	if (mode < 254) {
+		if ((flags & 0x80) == 0) {
+			printf("\tdraw_4bpp\n");
+			exit(0);
+			// draw_4bpp(fb, flip_x, flip_y, r, src_y, src_y, dst_x, dst_y, w, h, src_pitch, mode);
+		} else {
+			printf("\tdraw_4bpp_rle\n");
+			exit(0);
+			// draw_4bpp_rle(fb, flip_x, flip_y, r, src_y, src_y, dst_x, dst_y, w, h, src_pitch, mode);
+		}
+	} else {
+		if ((flags & 0x80) == 0) {
+			draw_8bpp(dst, flip_x, flip_y, src, dst_x, dst_y, width, height, mode);
+		} else {
+			draw_8bpp_rle(dst, flip_x, flip_y, src, dst_x, dst_y, width, height, mode);
+		}
+	}
+}
+
+inline
+void write_pixel(byte *dst, int x, int y, uint8_t v)
+{
+	dst[320 * y + x] = v;
+}
+
+#define ADVANCE(p) do { p += (!flip_x ? 1 : -1); } while (0)
+
+void draw_8bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
+{
+	for (int y = 0; y != h; ++y) {
+		int x = !flip_x ? 0 : w - 1;
+
+		// mode 255 means that 0 is transparent.
+		if (mode == 255) {
+			for (int i = 0; i != w; ++i) {
+				byte value = src.readbyte();
+				if (value) {
+					write_pixel(dst, dst_x + x, dst_y + y, value);
+				}
+				ADVANCE(x);
+			}
+		} else {
+			for (int i = 0; i != w; ++i) {
+				byte value = src.readbyte();
+				write_pixel(dst, dst_x + x, dst_y + y, value);
+				ADVANCE(x);
+			}
+		}
+	}
+}
+
+void draw_8bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
+{
+	for (int y = 0; y != h; ++y) {
+		int line_remain = w;
+		int x = !flip_x ? 0 : w - 1;
+
+		do {
+			byte cmd = src.readbyte();
+			if (cmd & 0x80) {
+				int count = 257 - cmd;
+				byte value = src.readbyte();
+				if (mode == 255 && value == 0) {
+					x += flip_x ? -count : count;
+				} else {
+					for (int i = 0; i != count; ++i) {
+						write_pixel(dst, dst_x + x, dst_y + y, value);
+						ADVANCE(x);
+					}
+				}
+				line_remain -= count;
+			} else {
+				int count = cmd + 1;
+				for (int i = 0; i != count; ++i) {
+					byte value = src.readbyte();
+					if (!(mode == 255 && value == 0)) {
+						write_pixel(dst, dst_x + x, dst_y + y, value);
+					}
+					ADVANCE(x);
+				}
+				line_remain -= count;
+			}
+		} while (line_remain > 0);
+	}
+}
+
+#undef ADVANCE
 
 void vga_2572_wait_frame(std::atomic_uint16_t &timer, uint16_t start)
 {
