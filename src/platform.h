@@ -41,7 +41,7 @@ struct Display {
 	float dpi;
 };
 
-const Size default_window_size = {800, 600};
+const Size default_window_size = {2 * 320, 2 * 200};
 
 constexpr int32_t DEFAULT_WINDOW_POS = 1 << 31;
 

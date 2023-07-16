@@ -59,7 +59,7 @@ static
 bool init_window()
 {
 	if (!window.title) {
-		window.title = "dune";
+		window.title = "Dune - The Sleeper REawakens";
 	}
 	auto x = window.pos.x == DEFAULT_WINDOW_POS ? SDL_WINDOWPOS_CENTERED : window.pos.x;
 	auto y = window.pos.y == DEFAULT_WINDOW_POS ? SDL_WINDOWPOS_CENTERED : window.pos.y;
