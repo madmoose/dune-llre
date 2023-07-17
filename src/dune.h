@@ -102,14 +102,14 @@ byte *cs_e741_dat_read_toc();
 void  cs_e75b_res_store_in_lookup_table(uint16_t res_id, byte dl, byte *, byte *);
 void  cs_ea7b_init_extended_memory_allocator();
 byte *cs_f0b9_res_read_by_index_into_buffer(uint16_t index, uint8_t *buffer = nullptr);
-uint16_t cs_f0d6_res_read(byte* buffer, uint16_t size);
+uint32_t cs_f0d6_res_read(byte* buffer, uint32_t size);
 byte *cs_f0f6_alloc_get_addr();
 void  cs_f0ff_alloc_take(uint16_t bytes);
 byte *cs_f11c_alloc_check(uint16_t bytes);
 void  cs_f131_out_of_standard_memory();
 bool  cs_f1fb_res_open(const char *filename, int *fd, uint32_t *size, uint32_t *offset);
 void  cs_f229_res_open_or_die(const char *filename, int *fd, uint32_t *size, uint32_t *offset);
-uint16_t cs_f244_res_read_to_buffer(const char *filename, byte *buffer, uint16_t size);
+uint16_t cs_f244_res_read_to_buffer(const char *filename, byte *buffer, uint32_t *size);
 bool  cs_f2a7_dat_seek_to_name(const char *filename, int *fd, uint32_t *size, uint32_t *offset);
 void  cs_f2d6_dat_seek(int *fd, uint32_t offset);
 uint16_t cs_f2ea_dat_read(int bytes, byte *p);
@@ -117,7 +117,7 @@ std::optional<uint16_t> cs_f314_dat_get_res_index_by_name(const char *filename, 
 bool cs_f3a7_dat_locate_map_entry(uint16_t index, uint8_t dl, uint16_t &di);
 uint16_t cs_f3d3_maybe_uncompress_hsq(byte *buffer);
 void cs_f403_unpack_hsq_skip_header(ptr_offset_t &src, ptr_offset_t &dst);
-void cs_f40d_unpack_hsq(byte *buffer, uint16_t unpacked_size);
+void cs_f40d_unpack_hsq(ptr_offset_t src, uint16_t unpacked_size);
 void cs_f435_unpack_no_header(ptr_offset_t &src, ptr_offset_t &dst);
 
 void vga_0967_set_graphics_mode();

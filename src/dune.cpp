@@ -65,6 +65,7 @@ std::atomic_uint16_t ds_ce7c_pit_timer_counter_hi = 0;
 uint16_t ds_d820;
 ptr_offset_t ds_d844_resource_ptr[146];
 uint16_t ds_dabc_resource_last_used[124];
+byte *ds_dbb0_current_resource_ptr;
 byte ds_dbb4_last_bank_palette;
 byte ds_dbb5_hnm_flag;
 int ds_dbba_dat_fd;
@@ -598,18 +599,23 @@ void cs_c13e_open_resource_by_index(int16_t index)
 	ptr_offset_t res_ptr = ds_d844_resource_ptr[index];
 	if (!res_ptr.begin()) {
 		byte *buf = cs_f0b9_res_read_by_index_into_buffer(index);
+		res_ptr = make_ptr_offset(buf);
 
 		uint16_t res_head = res_ptr.peekle16();
-		if (res_head >= 2) {
+		if (res_head > 2) {
 			cs_c1aa_apply_bank_palette(res_ptr.begin());
 		}
 
 		ds_d844_resource_ptr[index] = ptr_offset_t(buf);
 	} else {
-		if (res_ptr.peekle16() >= 2) {
+		if (res_ptr.peekle16() > 2) {
 			cs_c1aa_apply_bank_palette(res_ptr.begin());
 		}
 	}
+
+	uint16_t data_offset = res_ptr.readle16();
+	res_ptr += data_offset;
+	ds_dbb0_current_resource_ptr = res_ptr.ptr();
 }
 
 void cs_c108_transition(int transition_type, void (*fn)())
@@ -630,7 +636,7 @@ void cs_c1aa_apply_bank_palette(const byte *p)
 	if (ds_dbb4_last_bank_palette == ds_278e_active_bank_id) {
 		return;
 	}
-	cs_c1aa_apply_bank_palette(p);
+	cs_c1ba_apply_palette(p);
 }
 
 void cs_c1ba_apply_palette(const byte *p)
@@ -1420,26 +1426,24 @@ byte *cs_f0b9_res_read_by_index_into_buffer(uint16_t index, uint8_t *buffer)
 	ds_ce78_dat_resource = index;
 	Resource *res = ds_31ff_resources[index];
 
-	// printf("%s: %04x %s\n", __func__, res->alloc_size, res->name);
 	if (res->alloc_size == 0) {
-		cs_f0d6_res_read(buffer, res->alloc_size);
+		cs_f0d6_res_read(buffer, 0);
 	} else {
 		buffer = cs_f11c_alloc_check(res->alloc_size);
-		uint16_t size = cs_f0d6_res_read(buffer, res->alloc_size);
+		uint32_t size = cs_f0d6_res_read(buffer, res->alloc_size);
 		cs_f0ff_alloc_take(size);
 	}
 
 	return buffer;
 }
 
-uint16_t cs_f0d6_res_read(byte *buffer, uint16_t size)
+uint32_t cs_f0d6_res_read(byte *buffer, uint32_t size)
 {
-	// printf("%s: %2x %2x\n", __func__, ds_ce78_dat_resource, ds_ce70_res_index_needs_extended_memory);
 	if (ds_ce78_dat_resource < ds_ce70_res_index_needs_extended_memory) {
 		assert(0 && "unimplemented");
 	}
 	Resource *res = ds_31ff_resources[ds_ce78_dat_resource];
-	cs_f244_res_read_to_buffer(res->name, buffer, size);
+	cs_f244_res_read_to_buffer(res->name, buffer, &size);
 
 	if (ds_ce78_dat_resource < ds_ce70_res_index_needs_extended_memory) {
 		assert(0 && "unimplemented");
@@ -1462,9 +1466,9 @@ void cs_f0ff_alloc_take(uint16_t bytes)
 	ds_39b7_alloc_next_addr += 16 * paragraph_count;
 }
 
-byte *cs_f11c_alloc_check(uint16_t bytes)
+byte *cs_f11c_alloc_check(uint16_t pages)
 {
-	if (bytes > ds_ce68_alloc_last_addr - ds_39b7_alloc_next_addr) {
+	if (16 * pages > ds_ce68_alloc_last_addr - ds_39b7_alloc_next_addr) {
 		cs_f131_out_of_standard_memory();
 	}
 	return ds_39b7_alloc_next_addr;
@@ -1511,18 +1515,17 @@ void cs_f229_res_open_or_die(const char *filename, int *fd, uint32_t *size, uint
 	}
 }
 
-uint16_t cs_f244_res_read_to_buffer(const char *filename, byte *buffer, uint16_t size)
+uint16_t cs_f244_res_read_to_buffer(const char *filename, byte *buffer, uint32_t *size)
 {
 	// TODO; // Check if resource fd == dat fd
 
 	int fd;
-	uint32_t _size;
 	uint32_t offset;
 
-	cs_f229_res_open_or_die(filename, &fd, &_size, &offset);
+	cs_f229_res_open_or_die(filename, &fd, size, &offset);
 	// cs_f2a7_dat_seek_to_name(filename, &fd, &_size, &offset);
 	// TODO;
-	return cs_f2ea_dat_read(size, buffer);
+	return cs_f2ea_dat_read(*size, buffer);
 }
 
 bool cs_f2a7_dat_seek_to_name(const char *filename, int *fd, uint32_t *size, uint32_t *offset)
@@ -1695,7 +1698,7 @@ uint16_t cs_f3d3_maybe_uncompress_hsq(byte *buffer)
 		uint16_t unpacked_size = c.readle16();
 
 		if (c.readbyte() == 0) {
-			cs_f40d_unpack_hsq(c.ptr(), unpacked_size);
+			cs_f40d_unpack_hsq(c, unpacked_size);
 		}
 		return unpacked_size;
 	}
@@ -1708,17 +1711,19 @@ void cs_f403_unpack_hsq_skip_header(ptr_offset_t &src, ptr_offset_t &dst)
 	cs_f435_unpack_no_header(src, dst);
 }
 
-void cs_f40d_unpack_hsq(byte *buffer, uint16_t unpacked_size)
+void cs_f40d_unpack_hsq(ptr_offset_t src, uint16_t unpacked_size)
 {
-	TODO;
-	exit(1);
-	// ptr_offset_t c = make_ptr_offset(buffer);
-	// uint16_t packed_size = c.readle16();
-	// assert(unpacked_size >= packed_size);
-	// memcpy(buffer + unpacked_size + 0x40, buffer + 3, packed_size - 3);
+	uint16_t offset = src.offset();
+	uint16_t packed_size = src.readle16();
+	assert(unpacked_size >= packed_size);
 
-	// ptr_offset_t src = make_ptr_offset(buffer + unpacked_size + 0x40);
-	// ptr_offset_t dst = make_ptr_offset(buffer);
+	src += -5;
+	ptr_offset_t orig_src = src;
+
+	ptr_offset_t new_src = src.ptr() + unpacked_size + 0x40;
+	memmove(new_src.ptr(), src.ptr() + 6, packed_size - 6);
+
+	cs_f435_unpack_no_header(new_src, src);
 }
 
 static inline byte getbit(uint16_t &queue, ptr_offset_t &c)
@@ -1773,10 +1778,9 @@ void cs_f435_unpack_no_header(ptr_offset_t &src, ptr_offset_t &dst)
 				offset = int(b) - 256;
 			}
 
-			// printf("%d + %d = %d\n", dst.offset(), offset, dst.offset() + offset);
-			// assert(dst.offset() + offset >= 0);
 			for (int i = 0; i != count + 2; ++i) {
-				dst.writebyte(dst.ptr()[offset]);
+				byte b = dst.ptr()[offset];
+				dst.writebyte(b);
 			}
 		}
 	}
