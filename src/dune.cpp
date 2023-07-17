@@ -49,6 +49,19 @@ App *g_app;
 std::atomic_bool quitting = false;
 std::thread *timer_thread = nullptr;
 #include <resources.h>
+
+uint16_t cs_c21a_sprite_pal_offset = 0;
+
+sprite_position ds_1500_sprite_list[] = {
+	{  2,   0,   0 },
+	{  3,   0,  25 },
+	{  4,   0,  50 },
+	{  5,   0,  74 },
+	{  6, 134,  92 },
+	{  0,   0, 102 },
+	{ -1,   0,   0 }
+};
+
 int16_t ds_278e_active_bank_id;
 int ds_35a6_hnm_fd;
 byte *ds_39b7_alloc_next_addr;
@@ -65,7 +78,7 @@ std::atomic_uint16_t ds_ce7c_pit_timer_counter_hi = 0;
 uint16_t ds_d820;
 ptr_offset_t ds_d844_resource_ptr[146];
 uint16_t ds_dabc_resource_last_used[124];
-byte *ds_dbb0_current_resource_ptr;
+ptr_offset_t ds_dbb0_current_resource_ptr;
 byte ds_dbb4_last_bank_palette;
 byte ds_dbb5_hnm_flag;
 int ds_dbba_dat_fd;
@@ -280,7 +293,7 @@ Scene cs_0337_intro_script[] = {
 	{      0, cs_069e_load_intro_hnm,                    0, 0x0036, cs_0f66_nullsub,            0x0190 },
 	{      0, cs_0f66_nullsub,                      0x0090, 0x0030, cs_06aa_play_intro_hnm,     0x0190 },
 	{      0, cs_0f66_nullsub,                      0x010c,     -1, cs_06bd_play_hnm_skippable,      1 },
-    // {      0,      sub_107FD,                              0, 0x003a, loc_1085D,                         0x04b0 },
+	{      0, cs_07fd,                                   0, 0x003a, cs_085d,                    0x04b0 },
     // { 0x0148,      sub_106CE,                         0x014e, 0x0010, sub_10704,                         0x1900 },
     // { 0x024b,      sub_10972,                         0x024e, 0x0010, empty,                             0x0085 },
     // {      0,      sub_1098A,                         0x0258, 0x0010, empty,                             0x0085 },
@@ -468,12 +481,52 @@ void cs_06bd_play_hnm_skippable()
 	} while (!cs_cc85_hnm_is_complete());
 }
 
+void cs_07fd()
+{
+	cs_c0ad_gfx_clear_active_framebuffer();
+
+	// Tail-call by fall-through
+	cs_0802(8);
+}
+
+void cs_0802(uint8_t bl)
+{
+	byte *p = cs_0820(bl);
+	vga_09e2_set_palette_unapplied(p, 384, 240);
+
+	// ds_46d7 = 0;
+	cs_c13e_open_resource_by_index(46);
+
+	// Tail-call
+	cs_c21b_draw_sprite_list(ds_1500_sprite_list);
+}
+
+byte *cs_0820(uint8_t bl)
+{
+	// Tail-call
+	ptr_offset_t p = cs_3978(46, bl);
+	return p.ptr();
+}
+
+void cs_085d()
+{
+}
+
 void cs_0945_intro_script_set_current_scene(Scene *scene)
 {
 	ds_4854_intro_scene_current_scene = scene;
 }
 
 void cs_0f66_nullsub() {}
+
+ptr_offset_t cs_3978(uint8_t al, uint8_t bl)
+{
+	ds_dbb4_last_bank_palette = al;
+	cs_c13e_open_resource_by_index(al);
+
+	// ds_46d6 = bl;
+	return cs_c1f4(bl) + 6;
+}
 
 bool cs_a2ef_is_pcm_enabled()
 {
@@ -613,9 +666,9 @@ void cs_c13e_open_resource_by_index(int16_t index)
 		}
 	}
 
-	uint16_t data_offset = res_ptr.readle16();
-	res_ptr += data_offset;
-	ds_dbb0_current_resource_ptr = res_ptr.ptr();
+	uint16_t data_offset = res_ptr.peekle16();
+	res_ptr.set_offset(data_offset);
+	ds_dbb0_current_resource_ptr = res_ptr;
 }
 
 void cs_c108_transition(int transition_type, void (*fn)())
@@ -671,6 +724,48 @@ void cs_c1ba_apply_palette(const byte *p)
 		p += count;
 		vga_09e2_set_palette_unapplied(pal, offset, count);
 	}
+}
+
+ptr_offset_t cs_c1f4(uint16_t ax)
+{
+	uint16_t offset = ::readle16(ds_dbb0_current_resource_ptr.ptr() + 2 * ax);
+	return ds_dbb0_current_resource_ptr + offset;
+}
+
+void cs_c21b_draw_sprite_list(sprite_position list[])
+{
+	for (sprite_position *p = list; p->flags_and_id != -1; ++p) {
+		cs_c22f_draw_sprite(p);
+	}
+}
+
+void cs_c22f_draw_sprite(sprite_position *p)
+{
+	byte *dst = ds_dbda_framebuffer_active;
+	ptr_offset_t sprite_data = ds_dbb0_current_resource_ptr;
+
+	uint16_t id = p->flags_and_id & 0x1ff;
+
+	uint16_t offset = sprite_data.peekle16_at_offset(2 * id);
+	sprite_data += offset;
+	uint16_t w0 = sprite_data.readle16();
+	uint16_t w1 = sprite_data.readle16();
+
+	byte flags      = (w0 & 0xfe00) >> 8;
+	int  width      = (w0 & 0x01ff);
+	int  height     = (w1 & 0x00ff);
+	byte pal_offset = (w1 & 0xff00) >> 8;
+
+	if (cs_c21a_sprite_pal_offset != 0) {
+		pal_offset = cs_c21a_sprite_pal_offset;
+	}
+
+	if ((p->flags_and_id & 0x1c00) == 0) {
+		vga_0f5b_blit(dst, p->x, p->y, sprite_data, width, height, flags, pal_offset);
+		return;
+	}
+
+	TODO;
 }
 
 void cs_c4cd_gfx_copy_framebuf_to_screen() {
@@ -1902,15 +1997,13 @@ void vga_0f5b_blit(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width,
 	bool flip_x = flags & 0x20;
 	bool flip_y = flags & 0x40;
 
+	dst_y += vga_01a3_y_offset;
+
 	if (mode < 254) {
 		if ((flags & 0x80) == 0) {
-			printf("\tdraw_4bpp\n");
-			exit(0);
-			// draw_4bpp(fb, flip_x, flip_y, r, src_y, src_y, dst_x, dst_y, w, h, src_pitch, mode);
+			draw_4bpp(dst, flip_x, flip_y, src, dst_x, dst_y, width, height, mode);
 		} else {
-			printf("\tdraw_4bpp_rle\n");
-			exit(0);
-			// draw_4bpp_rle(fb, flip_x, flip_y, r, src_y, src_y, dst_x, dst_y, w, h, src_pitch, mode);
+			draw_4bpp_rle(dst, flip_x, flip_y, src, dst_x, dst_y, width, height, mode);
 		}
 	} else {
 		if ((flags & 0x80) == 0) {
@@ -1928,6 +2021,78 @@ void write_pixel(byte *dst, int x, int y, uint8_t v)
 }
 
 #define ADVANCE(p) do { p += (!flip_x ? 1 : -1); } while (0)
+
+void draw_4bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
+{
+	for (int y = 0; y != h; ++y) {
+		int line_remain = w;
+		int x = !flip_x ? 0 : w - 1;
+
+		do {
+			byte value = src.readbyte();
+			byte p1 = (value & 0x0f);
+			byte p2 = (value >> 4);
+			if (p1) {
+				write_pixel(dst, dst_x + x, dst_y + y, p1 + value);
+			}
+			ADVANCE(x);
+			if (p2) {
+				write_pixel(dst, dst_x + x, dst_y + y, p2 + value);
+			}
+			ADVANCE(x);
+			line_remain -= 2;
+		} while (line_remain > 0);
+	}
+}
+
+void draw_4bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
+{
+	int src_x = 0, src_y = 0;
+
+	for (int y = 0; y != h; ++y) {
+		int line_remain = w;
+		int x = !flip_x ? 0 : w - 1;
+
+		do {
+			byte cmd = src.readbyte();
+			if (cmd & 0x80) {
+				int count = 257 - cmd;
+				byte value = src.readbyte();
+
+				byte p1 = (value & 0x0f);
+				byte p2 = (value >> 4);
+				for (int i = 0; i != count; ++i) {
+					if (p1 && y >= src_y && x >= src_x) {
+						write_pixel(dst, dst_x + x - src_x, dst_y + y - src_y, p1 + mode);
+					}
+					ADVANCE(x);
+					if (p2 && y >= src_y && x >= src_x) {
+						write_pixel(dst, dst_x + x - src_x, dst_y + y - src_y, p2 + mode);
+					}
+					ADVANCE(x);
+				}
+				line_remain -= 2 * count;
+			} else {
+				int count = cmd + 1;
+				for (int i = 0; i != count; ++i) {
+					byte value = src.readbyte();
+
+					byte p1 = (value & 0x0f);
+					byte p2 = (value >> 4);
+					if (p1 && y >= src_y && x >= src_x) {
+						write_pixel(dst, dst_x + x - src_y, dst_y + y - src_y, p1 + mode);
+					}
+					ADVANCE(x);
+					if (p2 && y >= src_y && x >= src_x) {
+						write_pixel(dst, dst_x + x - src_x, dst_y + y - src_y, p2 + mode);
+					}
+					ADVANCE(x);
+				}
+				line_remain -= 2 * count;
+			}
+		} while (line_remain > 0);
+	}
+}
 
 void draw_8bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
 {

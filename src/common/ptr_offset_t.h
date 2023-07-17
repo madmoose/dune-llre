@@ -72,6 +72,12 @@ struct ptr_offset_t {
 		return v;
 	}
 
+	uint16_t peekle16_at_offset(uint16_t offset)
+	{
+		uint16_t v = ::readle16(ptr() + offset);
+		return v;
+	}
+
 	uint16_t readle16()
 	{
 		uint16_t v = ::readle16(ptr());

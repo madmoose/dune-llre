@@ -33,6 +33,12 @@ struct Scene {
 	int32_t f;
 };
 
+struct sprite_position {
+	int16_t flags_and_id;
+	int16_t x;
+	int16_t y;
+};
+
 void  cs_0000_start();
 void  cs_00b0_initialize_resources();
 void  cs_00d1_initialize_resources();
@@ -48,8 +54,13 @@ void  cs_0684_play_present_hnm();
 void  cs_069e_load_intro_hnm();
 void  cs_06aa_play_intro_hnm();
 void  cs_06bd_play_hnm_skippable();
+void  cs_07fd();
+void  cs_0802(uint8_t bl);
+byte *cs_0820(uint8_t bl);
+void  cs_085d();
 void  cs_0945_intro_script_set_current_scene(Scene *scene);
 void  cs_0f66_nullsub();
+ptr_offset_t cs_3978(uint8_t al, uint8_t bl);
 void  cs_3a7c();
 bool  cs_a2ef_is_pcm_enabled();
 void  cs_aa0f_decode_sound_block();
@@ -64,6 +75,9 @@ void  cs_c13e_open_resource_by_index(int16_t index);
 void  cs_c108_transition(int transition_type, void (*fn)());
 void  cs_c1aa_apply_bank_palette(const byte *p);
 void  cs_c1ba_apply_palette(const byte *p);
+ptr_offset_t cs_c1f4(uint16_t ax);
+void  cs_c21b_draw_sprite_list(sprite_position list[]);
+void  cs_c22f_draw_sprite(sprite_position *p);
 void  cs_c4cd_gfx_copy_framebuf_to_screen();
 bool  cs_c92b_hnm_open_and_load_palette(uint16_t id);
 bool  cs_c93c_hnm_read_header();
@@ -131,6 +145,8 @@ void vga_0b0c();
 void vga_0b68_set_palette_to_screen(byte *pal, int start, int entries);
 void vga_0c06_set_y_offset(uint8_t y);
 void vga_0f5b_blit(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height, uint8_t flags, uint8_t mode);
+void draw_4bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode);
+void draw_4bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode);
 void draw_8bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode);
 void draw_8bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode);
 void vga_1b7c_copy_framebuffer(byte *dst, byte *src);
