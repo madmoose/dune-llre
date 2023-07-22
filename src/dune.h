@@ -39,6 +39,14 @@ struct sprite_position {
 	int16_t y;
 };
 
+typedef void (*frame_task_fn_t)(void);
+
+struct frame_task_t {
+	uint16_t        interval;
+	uint16_t        ticks_since_last;
+	frame_task_fn_t fn;
+};
+
 void  cs_0000_start();
 void  cs_00b0_initialize_resources();
 void  cs_00d1_initialize_resources();
@@ -58,9 +66,12 @@ void  cs_07fd();
 void  cs_0802(uint8_t bl);
 byte *cs_0820(uint8_t bl);
 void  cs_085d();
+void  cs_0911();
 void  cs_0945_intro_script_set_current_scene(Scene *scene);
 void  cs_0f66_nullsub();
 ptr_offset_t cs_3978(uint8_t al, uint8_t bl);
+void  cs_3916();
+void  cs_391d();
 void  cs_3a7c();
 bool  cs_a2ef_is_pcm_enabled();
 void  cs_aa0f_decode_sound_block();
@@ -110,7 +121,12 @@ void  cs_ce6c_hnm_initialize();
 void  cs_ceb0_hnm(uint16_t id);
 void  cs_cefc_load_irulan_hnm();
 void  cs_cf1b_play_irulan_hnm();
+void  cs_da25_add_frame_task(uint8_t interval, frame_task_fn_t fn);
+void  cs_da53_remove_all_frame_tasks();
+void  cs_da5f_remove_frame_task(frame_task_fn_t fn);
 bool  cs_dd63_has_user_input();
+bool  cs_ddb0_wait_interruptable(uint16_t max_wait_ticks);
+bool  cs_ddf0_wait_voice_interruptable(uint16_t fallback_wait_ticks);
 bool  cs_e675_dat_open();
 byte *cs_e741_dat_read_toc();
 void  cs_e75b_res_store_in_lookup_table(uint16_t res_id, byte dl, byte *, byte *);
@@ -139,8 +155,10 @@ void vga_0975(bool monochrome);
 void vga_09d9_get_screen_buffer(byte **buffer, uint16_t *size);
 void vga_09e2_set_palette_unapplied(const byte *src, int byte_start, int len);
 void vga_0a21_pal_byte_offset_and_byte_count_to_index(uint16_t *offset, uint16_t *count);
+void vga_0a40_set_palette_2(const byte *src, int byte_start, int len);
 void vga_0a58_copy_pal_1_to_pal_2();
 void vga_0a68_copy_pal_1_to_pal_2();
+void vga_0ad7(uint8_t al, uint16_t offset, uint16_t count);
 void vga_0b0c();
 void vga_0b68_set_palette_to_screen(byte *pal, int start, int entries);
 void vga_0c06_set_y_offset(uint8_t y);

@@ -62,11 +62,15 @@ sprite_position ds_1500_sprite_list[] = {
 	{ -1,   0,   0 }
 };
 
+byte ds_227d = 1;
+uint16_t ds_22e3 = 1;
 int16_t ds_278e_active_bank_id;
 int ds_35a6_hnm_fd;
 byte *ds_39b7_alloc_next_addr;
 Scene *ds_4854_intro_scene_current_scene;
 byte ds_4948_tablat_bin[792];
+byte ds_46d6;
+byte ds_46d7;
 byte *ds_ce68_alloc_last_addr;
 uint16_t ds_ce70_res_index_needs_extended_memory;
 byte ds_ce71_disable_hsq_detection;
@@ -109,6 +113,9 @@ uint16_t ds_dc1a_hnm_read_offset;
 uint16_t ds_dc1c_hnm_sd_block_ofs;
 uint16_t ds_dc1e_hnm_pl_block_ofs;
 uint16_t ds_dc20_hnm_block_size;
+uint16_t ds_dc66_frame_task_time;
+uint16_t ds_dc6a_frame_tasks_count;
+frame_task_t ds_dc6c_frame_tasks[0x20];
 bool ds_dce6_in_transition = false;
 
 /**
@@ -265,6 +272,9 @@ void cs_00b0_initialize_resources()
 {
 	cs_00d1_initialize_resources();
 	cs_0169_initialize_map();
+	cs_da53_remove_all_frame_tasks();
+	// cs_b17a();
+	// cs_b17a();
 }
 
 void cs_00d1_initialize_resources()
@@ -356,7 +366,7 @@ restart_intro:
 		}
 
 		// TODO: cs_de0c_check_midi();
-		// TODO: cs_0911(); BIG STUFF
+		cs_0911();
 
 		stepfn load_fn = ds_4854_intro_scene_current_scene->b;
 		cs_c097_gfx_call_with_front_buffer_as_screen(load_fn);
@@ -375,12 +385,14 @@ restart_intro:
 
 		cs_c07c_set_front_buffer_as_active_framebuffer();
 		// TODO: ds_4701 |= 0x80;
-		// TODO: cs_dd63_has_user_input()
+		cs_dd63_has_user_input();
 
 		stepfn run_fn = ds_4854_intro_scene_current_scene->e;
 		run_fn();
 
-		// TODO: cs_ddf0()
+		if (ds_4854_intro_scene_current_scene->f) {
+			cs_ddf0_wait_voice_interruptable(ds_4854_intro_scene_current_scene->f);
+		}
 
 		++ds_4854_intro_scene_current_scene;
 	}
@@ -494,7 +506,7 @@ void cs_0802(uint8_t bl)
 	byte *p = cs_0820(bl);
 	vga_09e2_set_palette_unapplied(p, 384, 240);
 
-	// ds_46d7 = 0;
+	ds_46d7 = 0;
 	cs_c13e_open_resource_by_index(46);
 
 	// Tail-call
@@ -508,8 +520,44 @@ byte *cs_0820(uint8_t bl)
 	return p.ptr();
 }
 
+void cs_0826()
+{
+	if (ds_46d7 == 0) {
+		uint8_t al = ds_46d6 + 1;
+		assert(al != 0);
+
+		if (al == 11) {
+			TODO; return;
+		}
+		if (al == 14) {
+			return;
+		}
+		uint8_t ah = 10;
+		if (al != 10) {
+			ah = 30;
+		}
+		ds_46d7 = ah;
+		uint8_t bl = al;
+		byte *p = cs_0820(bl);
+		vga_0a40_set_palette_2(p, 384, 240);
+	}
+
+	cs_391d();
+}
+
 void cs_085d()
 {
+	cs_da25_add_frame_task(9, cs_0826);
+}
+
+void cs_0911()
+{
+	TODO;
+	ds_22e3 = 1;
+	// cs_da5f_remove_frame_task(cs_070c);
+	// cs_da5f_remove_frame_task(cs_3916);
+	// cs_0a3e();
+	cs_da5f_remove_frame_task(cs_0826);
 }
 
 void cs_0945_intro_script_set_current_scene(Scene *scene)
@@ -519,12 +567,37 @@ void cs_0945_intro_script_set_current_scene(Scene *scene)
 
 void cs_0f66_nullsub() {}
 
+void cs_3916()
+{
+	TODO;
+}
+
+void cs_391d()
+{
+	uint16_t count  = 3 * 151;
+	uint16_t offset = 3 *  73;
+	if (ds_22e3 == 0) {
+		count  = 3 *  80;
+		offset = 3 * 128;
+	}
+	byte al = ds_46d7;
+	vga_0ad7(al, offset, count);
+	if (ds_227d == 0) {
+		uint16_t count  = 3 *  16;
+		uint16_t offset = 3 * 240;
+		vga_0ad7(al, offset, count);
+	}
+	if (ds_46d7-- == 0) {
+		cs_da5f_remove_frame_task(cs_3916);
+	}
+}
+
 ptr_offset_t cs_3978(uint8_t al, uint8_t bl)
 {
 	ds_dbb4_last_bank_palette = al;
 	cs_c13e_open_resource_by_index(al);
 
-	// ds_46d6 = bl;
+	ds_46d6 = bl;
 	return cs_c1f4(bl) + 6;
 }
 
@@ -1400,10 +1473,97 @@ void  cs_cf1b_play_irulan_hnm()
 	ds_dbda_framebuffer_active = old_active_frame_buffer;
 }
 
+void cs_d9d2_process_frame_tasks()
+{
+	// cs_ace6()
+	uint16_t now = ds_ce7a_pit_timer_counter;
+	uint16_t previous_frame_task_time = ds_dc66_frame_task_time;
+	ds_dc66_frame_task_time = now;
+	uint16_t ticks_since_last = now - previous_frame_task_time;
+
+	if (ds_dc6a_frame_tasks_count == 0) {
+		return;
+	}
+
+	for (int i = 0; i != ds_dc6a_frame_tasks_count; ++i) {
+		uint16_t next_task_ticks = ticks_since_last + ds_dc6c_frame_tasks[i].ticks_since_last;
+		if (next_task_ticks < ds_dc6c_frame_tasks[i].interval) {
+			ds_dc6c_frame_tasks[i].ticks_since_last = next_task_ticks;
+			continue;
+		}
+		if (ds_dc6c_frame_tasks[i].interval != 0) {
+			ds_dc6c_frame_tasks[i].ticks_since_last = next_task_ticks % ds_dc6c_frame_tasks[i].interval;
+		}
+
+		if (ds_dc6c_frame_tasks[i].fn) {
+			ds_dc6c_frame_tasks[i].fn();
+		}
+	}
+}
+
+void cs_da25_add_frame_task(uint8_t interval, frame_task_fn_t fn)
+{
+	if (ds_dc6a_frame_tasks_count >= 20) {
+		return;
+	}
+	frame_task_t &task = ds_dc6c_frame_tasks[ds_dc6a_frame_tasks_count++];
+	task.interval = interval;
+	task.ticks_since_last = 0;
+	task.fn = fn;
+}
+
+void cs_da53_remove_all_frame_tasks()
+{
+	ds_dc6a_frame_tasks_count = 0;
+	ds_46d7 = 0;
+}
+
+void cs_da5f_remove_frame_task(frame_task_fn_t fn)
+{
+	for (int i = 0; i != ds_dc6a_frame_tasks_count; ++i) {
+		if (ds_dc6c_frame_tasks[i].fn == fn) {
+			for (int j = i + 1; j != ds_dc6a_frame_tasks_count; ++j) {
+				ds_dc6c_frame_tasks[i] = ds_dc6c_frame_tasks[j];
+			}
+			ds_dc6a_frame_tasks_count -= 1;
+			return;
+		}
+	}
+}
+
 bool cs_dd63_has_user_input()
 {
 	// TODO;
+
+	cs_d9d2_process_frame_tasks();
+
 	return false;
+}
+
+bool cs_ddb0_wait_interruptable(uint16_t max_wait_ticks)
+{
+	int32_t signed_max_wait_ticks = max_wait_ticks;
+
+	do {
+		if (cs_dd63_has_user_input()) {
+			return true;
+		}
+
+		uint16_t now = ds_ce7a_pit_timer_counter;
+		do {
+			std::this_thread::yield(); // Ugh
+		} while (now == ds_ce7a_pit_timer_counter);
+		signed_max_wait_ticks -= ds_ce7a_pit_timer_counter - now;
+	} while (signed_max_wait_ticks >= 0);
+
+	return false;
+}
+
+bool cs_ddf0_wait_voice_interruptable(uint16_t fallback_wait_ticks)
+{
+	// TODO: Check PCM voice
+
+	return cs_ddb0_wait_interruptable(fallback_wait_ticks);
 }
 
 bool cs_e675_dat_open()
@@ -1924,6 +2084,11 @@ void vga_0a21_pal_byte_offset_and_byte_count_to_index(uint16_t *offset, uint16_t
 	*count = std::min<uint16_t>(*count, 256);
 }
 
+void vga_0a40_set_palette_2(const byte *src, int byte_start, int len)
+{
+	memcpy(vga_02bf_palette_unapplied + byte_start, src, len);
+}
+
 void vga_0a58_copy_pal_1_to_pal_2() {
 	memcpy(vga_02bf_palette_unapplied, vga_05bf_palette_unapplied, 3 * 256);
 }
@@ -1931,6 +2096,21 @@ void vga_0a58_copy_pal_1_to_pal_2() {
 void vga_0a68_copy_pal_1_to_pal_2()
 {
 	vga_0a58_copy_pal_1_to_pal_2();
+}
+
+void vga_0ad7(uint8_t al, uint16_t offset, uint16_t count)
+{
+	byte dl = al > 0 ? al : al + 1;
+	byte *dst = vga_05bf_palette_unapplied + offset;
+	byte *src = vga_02bf_palette_unapplied + offset;
+	uint16_t dx = offset;
+
+	for (int i = 0; i != count; ++i) {
+		int d = src[i] - dst[i];
+		dst[i] += d / dl;
+	}
+	vga_0a21_pal_byte_offset_and_byte_count_to_index(&offset, &count);
+	vga_0b68_set_palette_to_screen(vga_05bf_palette_unapplied, offset, count);
 }
 
 void vga_0b0c()
