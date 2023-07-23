@@ -527,13 +527,15 @@ void cs_0826()
 		assert(al != 0);
 
 		if (al == 11) {
-			TODO; return;
+			// What's this for?
+			cs_c13e_open_resource_by_index(9);
+			return;
 		}
 		if (al == 14) {
 			return;
 		}
 		uint8_t ah = 10;
-		if (al != 10) {
+		if (al != 13) {
 			ah = 30;
 		}
 		ds_46d7 = ah;
