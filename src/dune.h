@@ -47,6 +47,8 @@ struct frame_task_t {
 	frame_task_fn_t fn;
 };
 
+extern uint16_t vga_2fd7_transition_offsets[16];
+
 void  cs_0000_start();
 void  cs_00b0_initialize_resources();
 void  cs_00d1_initialize_resources();
@@ -179,5 +181,5 @@ void vga_1be7_copy_game_area(byte *dst, byte *src);
 void vga_2572_wait_frame(std::atomic_uint16_t &timer, uint16_t start);
 void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *si, uint8_t *es, uint8_t *ds);
 void vga_261d_maybe_wait_frame(std::atomic_uint16_t &timer, uint16_t start);
-void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer);
+void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer, uint16_t cx);
 void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer);

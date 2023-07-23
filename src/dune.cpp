@@ -501,6 +501,8 @@ void cs_06ce()
 void cs_06f3(uint16_t ax)
 {
 	ds_dbda_framebuffer_active += 24 * 320;
+
+	// Tail-call
 	cs_ca1b_hnm_load(ax);
 }
 
@@ -2414,10 +2416,11 @@ void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *si,
 	vga_2535_fb = si;
 	vga_2537_fb = ds;
 	vga_2539_fb = es;
+	uint16_t cx = 152;
 
 	switch (type) {
 	case 0x10:
-		vga_2dc3_transition_effect_0x10(timer);
+		vga_2dc3_transition_effect_0x10(timer, cx);
 		break;
 	case 0x3a:
 		vga_272e_transition_effect_0x3a(timer);
@@ -2496,24 +2499,33 @@ void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer)
 	vga_264d(timer, 255, 3, 22);
 }
 
-void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer)
+void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer, uint16_t cx)
 {
-	return;
-	uint16_t *vga_2fd7_transition_offsets;
-
 	uint16_t start = timer.load();
 
 	for (int i = 0; i != 16; ++i) {
-		for (int y = 0; y != 200 / 4; ++y) {
+		for (int y = 0; y != cx / 4; ++y) {
 			for (int x = 0; x != 320 / 4; ++x) {
-				int offset = 320 * y + x + vga_2fd7_transition_offsets[i] + vga_01a3_y_offset;
-				// dst[offset] = 0;
+				int offset = 320 * (4*y+vga_01a3_y_offset) + 4*x + vga_2fd7_transition_offsets[i];
+				vga_2539_fb[offset] = 0;
 			}
 		}
-		// app.update_screen();
+		g_app->update_screen(vga_2539_fb);
+		vga_2572_wait_frame(timer, start);
 	}
 
-	vga_2572_wait_frame(timer, start);
+	vga_0b0c();
+
+	for (int i = 0; i != 16; ++i) {
+		for (int y = 0; y != cx / 4; ++y) {
+			for (int x = 0; x != 320 / 4; ++x) {
+				int offset = 320 * (4*y+vga_01a3_y_offset) + 4*x + vga_2fd7_transition_offsets[i];
+				vga_2539_fb[offset] = vga_2537_fb[offset];
+			}
+		}
+		g_app->update_screen(vga_2539_fb);
+		vga_2572_wait_frame(timer, start);
+	}
 }
 
 #define XY(x, y) (320 * y + x)
