@@ -304,7 +304,7 @@ Scene cs_0337_intro_script[] = {
 	{      0, cs_0f66_nullsub,                      0x0090, 0x0030, cs_06aa_play_intro_hnm,     0x0190 },
 	{      0, cs_0f66_nullsub,                      0x010c,     -1, cs_06bd_play_hnm_skippable,      1 },
 	{      0, cs_07fd,                                   0, 0x003a, cs_085d,                    0x04b0 },
-    // { 0x0148,      sub_106CE,                         0x014e, 0x0010, sub_10704,                         0x1900 },
+	{ 0x0148, cs_06ce,                              0x014e, 0x0010, cs_0704,                    0x1900 },
     // { 0x024b,      sub_10972,                         0x024e, 0x0010, empty,                             0x0085 },
     // {      0,      sub_1098A,                         0x0258, 0x0010, empty,                             0x0085 },
     // {      0,      sub_10995,                         0x0262, 0x0010, loc_10798,                         0x0258 },
@@ -493,6 +493,29 @@ void cs_06bd_play_hnm_skippable()
 	} while (!cs_cc85_hnm_is_complete());
 }
 
+void cs_06ce()
+{
+	cs_06f3(16);
+}
+
+void cs_06f3(uint16_t ax)
+{
+	ds_dbda_framebuffer_active += 24 * 320;
+	cs_ca1b_hnm_load(ax);
+}
+
+void cs_0704()
+{
+	cs_da25_add_frame_task(0, cs_070c);
+	cs_070c();
+}
+
+void cs_070c()
+{
+	cs_ca60_hnm_do_frame();
+	g_app->update_screen(ds_dbd8_framebuffer_screen);
+}
+
 void cs_07fd()
 {
 	cs_c0ad_gfx_clear_active_framebuffer();
@@ -603,6 +626,24 @@ ptr_offset_t cs_3978(uint8_t al, uint8_t bl)
 	return cs_c1f4(bl) + 6;
 }
 
+void cs_4afd()
+{
+	if (ds_227d) {
+		cs_4b16();
+		return;
+	}
+	TODO;
+	exit(0);
+}
+
+void cs_4b16()
+{
+	if (ds_dbd6_framebuffer_1 == ds_dbd8_framebuffer_screen) {
+		return;
+	}
+	vga_1be7_copy_game_area(ds_dbd8_framebuffer_screen + 24 * 320, ds_dbd6_framebuffer_1);
+}
+
 bool cs_a2ef_is_pcm_enabled()
 {
 	// return ds_dbc8 & 1;
@@ -710,7 +751,6 @@ void cs_c0f4()
 
 void cs_c13e_open_resource_by_index(int16_t index)
 {
-	FUNC_NAME;
 	if (index < 0 || ds_278e_active_bank_id == index) {
 		return;
 	}
@@ -1269,11 +1309,15 @@ void cs_cc96_decode_video_block()
 		}
 		return;
 	}
+
 	if ((ds_dbfe_hnm_resource_flag & 0x20) == 0) {
-		printf("jmp cs:4AFD");
-	} else {
-		printf("jmp cs:4AEB");
+		cs_4afd();
+		return;
 	}
+
+	// jmp cs:4AEB
+	TODO;
+	exit(0);
 }
 
 void cs_ccf4_hnm_decode_frame(ptr_offset_t src, uint16_t len, byte *dst_ptr)
@@ -2156,6 +2200,14 @@ void vga_0c06_set_y_offset(uint8_t y)
 	vga_01a3_y_offset = y;
 }
 
+void vga_1b7c_copy_framebuffer(byte *dst, byte *src)
+{
+	memcpy(dst, src, 320 * 200);
+	if (dst == ds_dbd8_framebuffer_screen) {
+		g_app->update_screen(ds_dbd8_framebuffer_screen);
+	}
+}
+
 void vga_1bca_copy_interlaced(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height)
 {
 	dst_y += vga_01a3_y_offset;
@@ -2167,11 +2219,9 @@ void vga_1bca_copy_interlaced(byte *dst, int dst_x, int dst_y, ptr_offset_t src,
 	}
 }
 
-void vga_1b7c_copy_framebuffer(byte *dst, byte *src) {
-	memcpy(dst, src, 320 * 200);
-	if (dst == ds_dbd8_framebuffer_screen) {
-		g_app->update_screen(ds_dbd8_framebuffer_screen);
-	}
+void vga_1be7_copy_game_area(byte *dst, byte *src)
+{
+	memcpy(dst, src, 152 * 320);
 }
 
 void vga_0f5b_blit(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height, uint8_t flags, uint8_t mode)
@@ -2448,6 +2498,7 @@ void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer)
 
 void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer)
 {
+	return;
 	uint16_t *vga_2fd7_transition_offsets;
 
 	uint16_t start = timer.load();
