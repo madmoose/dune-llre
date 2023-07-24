@@ -25,12 +25,12 @@ struct RGB {
 };
 
 struct Scene {
-	int32_t a;
+	int16_t a;
 	stepfn  b;
-	int32_t c;
-	int32_t d;
+	int16_t c;
+	int16_t d;
 	stepfn  e;
-	int32_t f;
+	int16_t f;
 };
 
 struct sprite_position {

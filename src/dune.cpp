@@ -839,9 +839,8 @@ void cs_c1ba_apply_palette(const byte *p)
 		offset *= 3;
 		count *= 3;
 
-		const byte *pal = p;
+		vga_09e2_set_palette_unapplied(p, offset, count);
 		p += count;
-		vga_09e2_set_palette_unapplied(pal, offset, count);
 	}
 }
 
