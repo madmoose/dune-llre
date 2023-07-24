@@ -368,6 +368,8 @@ restart_intro:
 		// TODO: cs_de0c_check_midi();
 		cs_0911();
 
+		vga_0a68_copy_pal_1_to_pal_2();
+
 		stepfn load_fn = ds_4854_intro_scene_current_scene->b;
 		cs_c097_gfx_call_with_front_buffer_as_screen(load_fn);
 
