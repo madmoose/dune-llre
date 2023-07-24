@@ -2420,9 +2420,12 @@ void vga_25e7_transition(std::atomic_uint16_t &timer, uint8_t type, uint8_t *si,
 	vga_2539_fb = es;
 	uint16_t cx = 152;
 
-	switch (type) {
+	switch (type & 0xfe) {
 	case 0x10:
 		vga_2dc3_transition_effect_0x10(timer, cx);
+		break;
+	case 0x30:
+		vga_2757_transition_effect_0x30();
 		break;
 	case 0x3a:
 		vga_272e_transition_effect_0x3a(timer);
@@ -2499,6 +2502,12 @@ void vga_272e_transition_effect_0x3a(std::atomic_uint16_t &timer)
 	}
 	vga_26e3(timer,  85, 3, 22);
 	vga_264d(timer, 255, 3, 22);
+}
+
+void vga_2757_transition_effect_0x30()
+{
+	vga_0b0c();
+	memcpy(vga_2539_fb + vga_01a3_y_offset, vga_2537_fb + vga_01a3_y_offset, 152 * 320);
 }
 
 void vga_2dc3_transition_effect_0x10(std::atomic_uint16_t &timer, uint16_t cx)
