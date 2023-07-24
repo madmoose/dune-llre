@@ -296,7 +296,7 @@ Scene cs_0337_intro_script[] = {
 	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
 	{      0, cs_064d_load_cryo_hnm,                     0, 0x0030, cs_0661_play_cryo_hnm,           1 },
 	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,           1 },
-	{      0, cs_0f66_nullsub,                      0x00a8,      1, cs_0f66_nullsub,                 1 },
+	{      0, cs_0f66_nullsub,                      0x00a8,     -1, cs_0f66_nullsub,                 1 },
 	{      0, cs_0678_load_present_hnm,                  0, 0x003a, cs_0684_play_present_hnm,        1 },
 	{      0, cs_cefc_load_irulan_hnm,                   0, 0x003a, cs_cf1b_play_irulan_hnm,         1 },
 	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
