@@ -52,25 +52,53 @@ std::thread *timer_thread = nullptr;
 
 uint16_t cs_c21a_sprite_pal_offset = 0;
 
+uint16_t ds_0004 = 0x200a;
+uint16_t ds_0006 = 0x0180;
+uint16_t ds_0008 = 0x0020;
+uint16_t ds_0012 = 0;
+uint16_t ds_114e = 0xffff;
+byte ds_144c = -1;
+
 sprite_position ds_1500_sprite_list[] = {
-	{  2,   0,   0 },
-	{  3,   0,  25 },
-	{  4,   0,  50 },
-	{  5,   0,  74 },
-	{  6, 134,  92 },
-	{  0,   0, 102 },
-	{ -1,   0,   0 }
+	{      2,   0,   0 },
+	{      3,   0,  25 },
+	{      4,   0,  50 },
+	{      5,   0,  74 },
+	{      6, 134,  92 },
+	{      0,   0, 102 },
+	{ 0xffff,   0,   0 }
+};
+
+sprite_position ds_1526_sprite_list[] = {
+	{      0,   0,   0 },
+	{      1,  52,  25 },
+	{      2, 108,  51 },
+	{ 0xffff,   0,   0 }
 };
 
 byte ds_227d = 1;
 uint16_t ds_22e3 = 1;
 int16_t ds_278e_active_bank_id;
 int ds_35a6_hnm_fd;
+int16_t ds_35a8_subtitle_frames_irulan[] = {
+	 119,  137,  138,  173,  186,  238,  248,  269,  270,  305,
+	 314,  338,  348,  358,  360,  388,  389,  415,  425,  460,
+	 470,  518,  528,  571,  576,  604,  605,  659,  660,  685,
+	 693,  744,  746,  757,  761,  818,  827,  866,  875,  945,
+	 950, 1000, 1012, 1042, 1044, 1075, 1085, 1119, 1120, 1142,
+	1147, 1169, 1172, 1214, 1226, 1259, 1266, 1285, 1294, 1315,
+	  -1
+};
+int16_t *ds_3622_subtitle_next_frame;
 byte *ds_39b7_alloc_next_addr;
+byte ds_4732;
+byte ds_46df;
+byte ds_47a4;
 Scene *ds_4854_intro_scene_current_scene;
 byte ds_4948_tablat_bin[792];
 byte ds_46d6;
 byte ds_46d7;
+byte *ds_bc6e;
 byte *ds_ce68_alloc_last_addr;
 uint16_t ds_ce70_res_index_needs_extended_memory;
 byte ds_ce71_disable_hsq_detection;
@@ -212,7 +240,7 @@ void dump_framebuffer_ppm(const char *postfix, byte *fb, byte *pal) {
 	sprintf(filename, "ppm/frame-%03d-%s.ppm", g_frame, postfix);
 
 	FILE *f = fopen(filename, "wb");
-	fprintf(f, "P6\n320 200 255\n");
+	fprintf(f, "P6\n320 200\n255\n");
 	fwrite(output, 3 * 320 * 200, 1, f);
 	fclose(f);
 }
@@ -268,6 +296,11 @@ void cs_0000_start()
 	cs_0580_play_intro();
 }
 
+void cs_0098_adjust_subresource_pointers_IGNORE()
+{
+
+}
+
 void cs_00b0_initialize_resources()
 {
 	cs_00d1_initialize_resources();
@@ -291,55 +324,92 @@ void cs_0169_initialize_map()
 	TODO;
 }
 
+/*
+ *  1. Virgin logo
+ *  2. Cryo logo 1
+ *  3. Cryo logo 2
+ *  4. Virgin Games Presents
+ *  5. Princess Irulan video
+ *  6. Dune logo
+ *  7. Desert sky animation
+ *  8. Desert flyover video
+ *  9. Palace, ready room
+ * 10. Palace, Lady Jessica
+ * 11. Palace, Duke Leto
+ */
+
+
+
 Scene cs_0337_intro_script[] = {
+	// 1. Virgin logo
 	{      0, cs_061c_load_virgin_hnm,                   0, 0x003a, cs_0625_play_virgin_hnm,         1 },
+
+	// 2. Cryo logo 1
 	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
+	// 3. Cryo logo 2
 	{      0, cs_064d_load_cryo_hnm,                     0, 0x0030, cs_0661_play_cryo_hnm,           1 },
-	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,           1 },
+	{      0, cs_0658_load_cryo2_hnm,               0x006f, 0x0030, cs_0661_play_cryo_hnm,      0x0190 },
 	{      0, cs_0f66_nullsub,                      0x00a8,     -1, cs_0f66_nullsub,                 1 },
+
+	// 4. Virgin Games Presents
 	{      0, cs_0678_load_present_hnm,                  0, 0x003a, cs_0684_play_present_hnm,        1 },
+
+	// 5. Princess Irulan video
 	{      0, cs_cefc_load_irulan_hnm,                   0, 0x003a, cs_cf1b_play_irulan_hnm,         1 },
+
+	// 6. Dune logo
 	{      0, cs_c0ad_gfx_clear_active_framebuffer,      0, 0x003a, cs_0f66_nullsub,                 1 },
 	{      0, cs_069e_load_intro_hnm,                    0, 0x0036, cs_0f66_nullsub,            0x0190 },
 	{      0, cs_0f66_nullsub,                      0x0090, 0x0030, cs_06aa_play_intro_hnm,     0x0190 },
 	{      0, cs_0f66_nullsub,                      0x010c,     -1, cs_06bd_play_hnm_skippable,      1 },
+
+	// 7. Desert sky animation
 	{      0, cs_07fd,                                   0, 0x003a, cs_085d,                    0x04b0 },
+
+	// 8. Desert flyover video
 	{ 0x0148, cs_06ce,                              0x014e, 0x0010, cs_0704,                    0x1900 },
-    // { 0x024b,      sub_10972,                         0x024e, 0x0010, empty,                             0x0085 },
-    // {      0,      sub_1098A,                         0x0258, 0x0010, empty,                             0x0085 },
-    // {      0,      sub_10995,                         0x0262, 0x0010, loc_10798,                         0x0258 },
-    // { 0x02ca,      sub_10771,                         0x02cf, 0x0010, loc_10798,                         0x0258 },
-    // { 0x032e,      sub_107EE,                         0x0330, 0x0010, empty,                             0x00c8 },
-    // { 0x033c,      sub_109A5,                         0x0344, 0x0010, empty,                             0x0085 },
-    // {      0,      sub_106D3,                         0x034e, 0x0010, sub_10704,                         0x2648 },
-    // { 0x04be,      sub_1077C,                         0x04c0, 0x0010, empty,                             0x0085 },
-    // {      0,      sub_10788,                         0x04d0,     -1, sub_1078D,                         0x0258 },
-    // { 0x050c,      sub_107A3,                         0x0510, 0x0010, loc_10798,                         0x0258 },
-    // { 0x054c,      sub_107C6,                         0x0550, 0x0010, loc_10798,                         0x0258 },
-    // { 0x0588,      sub_10868,                         0x058f, 0x0010, sub_1087B,                         0x0320 },
-    // { 0x05ac,      sub_10886,                         0x05ae, 0x0030, loc_10798,                         0x0258 },
-    // { 0x05ee,      sub_109AD,                         0x05f0, 0x0030, loc_10798,                         0x0258 },
-    // { 0x0614,      empty,                                  0,     -1, sub_108B6,                         0x0032 },
-    // { 0x061e,      sub_10ACD,                         0x061e, 0x0010, empty,                             0x07d0 },
-    // { 0x064c,      sub_106D8,                              0, 0x0010, sub_106FC,                         0x0c80 },
-    // { 0x06c6,      sub_10740,                         0x06c8, 0x003a, empty,                             0x0190 },
-    // {      0,      sub_1075A,                         0x06ee, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10752,                         0x06fe, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_1073C,                         0x070e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10756,                         0x072e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_1075E,                         0x073e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10737,                         0x074e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10747,                         0x076e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_107E0,                         0x077e, 0x0010, empty,                             0x04b0 },
-    // { 0x07ac,      sub_106EA,                         0x07af, 0x0010, sub_10704,                         0x03e8 },
-    // { 0x07ce,      sub_1074B,                         0x07ce, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10711,                         0x07dc, 0x003a, sub_1071D,                              1 },
-    // {      0,      sub_1076A,                         0x081c, 0x003a, empty,                             0x0190 },
-    // {      0,      sub_10762,                         0x083e, 0x0010, empty,                             0x0190 },
-    // {      0,      sub_10766,                         0x084e, 0x0010, empty,                             0x00c8 },
-    // {      0,      clear_screen,                      0x085e, 0x003a, empty,                                  1 },
-    // {      0,      sub_1076A,                         0x085e, 0x0036, empty,                             0x0190 },
-    // {      0,      clear_screen,                      0x08e0, 0x0038, empty,                                  1 },
+
+	// 9. Palace, ready room
+	{ 0x024b, cs_0972,                              0x024e, 0x0010, cs_0f66_nullsub,            0x0085 },
+
+	// 10. Palace, Lady Jessica
+	{      0, cs_098a,                              0x0258, 0x0010, cs_0f66_nullsub,            0x0085 },
+
+	// 11. Palace, Duke Leto
+	{      0, cs_0995,                              0x0262, 0x0010, cs_0798,                    0x0258 },
+
+	// { 0x02ca, cs_0771,                              0x02cf, 0x0010, loc_10798,                  0x0258 },
+	// { 0x032e, cs_07ee,                              0x0330, 0x0010, cs_0f66_nullsub,            0x00c8 },
+	// { 0x033c, cs_09A5,                              0x0344, 0x0010, cs_0f66_nullsub,            0x0085 },
+	// {      0,      sub_106D3,                         0x034e, 0x0010, sub_10704,                         0x2648 },
+	// { 0x04be,      sub_1077C,                         0x04c0, 0x0010, empty,                             0x0085 },
+	// {      0,      sub_10788,                         0x04d0,     -1, sub_1078D,                         0x0258 },
+	// { 0x050c,      sub_107A3,                         0x0510, 0x0010, loc_10798,                         0x0258 },
+	// { 0x054c,      sub_107C6,                         0x0550, 0x0010, loc_10798,                         0x0258 },
+	// { 0x0588,      sub_10868,                         0x058f, 0x0010, sub_1087B,                         0x0320 },
+	// { 0x05ac,      sub_10886,                         0x05ae, 0x0030, loc_10798,                         0x0258 },
+	// { 0x05ee,      sub_109AD,                         0x05f0, 0x0030, loc_10798,                         0x0258 },
+	// { 0x0614,      empty,                                  0,     -1, sub_108B6,                         0x0032 },
+	// { 0x061e,      sub_10ACD,                         0x061e, 0x0010, empty,                             0x07d0 },
+	// { 0x064c,      sub_106D8,                              0, 0x0010, sub_106FC,                         0x0c80 },
+	// { 0x06c6,      sub_10740,                         0x06c8, 0x003a, empty,                             0x0190 },
+	// {      0,      sub_1075A,                         0x06ee, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10752,                         0x06fe, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_1073C,                         0x070e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10756,                         0x072e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_1075E,                         0x073e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10737,                         0x074e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10747,                         0x076e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_107E0,                         0x077e, 0x0010, empty,                             0x04b0 },
+	// { 0x07ac,      sub_106EA,                         0x07af, 0x0010, sub_10704,                         0x03e8 },
+	// { 0x07ce,      sub_1074B,                         0x07ce, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10711,                         0x07dc, 0x003a, sub_1071D,                              1 },
+	// {      0,      sub_1076A,                         0x081c, 0x003a, empty,                             0x0190 },
+	// {      0,      sub_10762,                         0x083e, 0x0010, empty,                             0x0190 },
+	// {      0,      sub_10766,                         0x084e, 0x0010, empty,                             0x00c8 },
+	// {      0,      clear_screen,                      0x085e, 0x003a, empty,                                  1 },
+	// {      0,      sub_1076A,                         0x085e, 0x0036, empty,                             0x0190 },
+	// {      0,      clear_screen,                      0x08e0, 0x0038, empty,                                  1 },
 	{-1}};
 
 void cs_0579_clear_global_y_offset()
@@ -375,6 +445,9 @@ restart_intro:
 
 		// TODO: ds_47d1 &= 0x7f;
 		// TODO: cs_39e6();
+
+		uint16_t bx = ds_4854_intro_scene_current_scene->d;
+		cs_de0c(bx);
 
 		int32_t transition_type = ds_4854_intro_scene_current_scene->d;
 		// TODO: cs_de0c_check_midi();
@@ -520,6 +593,17 @@ void cs_070c()
 	g_app->update_screen(ds_dbd8_framebuffer_screen);
 }
 
+void cs_0798()
+{
+	TODO;
+}
+
+void cs_07ee()
+{
+	cs_c13e_open_resource_by_index(48);
+	cs_c21b_draw_sprite_list(ds_1526_sprite_list);
+}
+
 void cs_07fd()
 {
 	cs_c0ad_gfx_clear_active_framebuffer();
@@ -579,6 +663,19 @@ void cs_085d()
 	cs_da25_add_frame_task(9, cs_0826);
 }
 
+void cs_08f0(uint16_t dx, uint16_t bx)
+{
+	ds_47a4 = 0;
+	ds_46df = 0;
+	ds_0004 = dx;
+	ds_0006 = bx;
+	ds_0008 = hi(dx);
+	ds_114e = 28 * hi(bx) + 228;
+
+	// Tail-call
+	cs_2d74_open_sal_resource();
+}
+
 void cs_0911()
 {
 	TODO;
@@ -594,7 +691,89 @@ void cs_0945_intro_script_set_current_scene(Scene *scene)
 	ds_4854_intro_scene_current_scene = scene;
 }
 
+void cs_0972()
+{
+	cs_c0ad_gfx_clear_active_framebuffer();
+
+	// Tail-call by fallthrough
+	cs_0978(0x2002);
+}
+
+void cs_0978(uint16_t dx)
+{
+	ds_0012 = 0;
+	cs_08f0(dx, 0x180);
+	cs_37b2();
+	// cs_1412();
+	// TODO; exit(0);
+}
+
+void cs_098a()
+{
+	ds_0012 = 2;
+	cs_08f0(0x2004, 0x180);
+	cs_37b2();
+	// cs_1412();
+	// TODO; exit(0);
+}
+
+void cs_0995()
+{
+	ds_0012 = 2;
+	cs_08f0(0x200a, 0x180);
+	cs_37b2();
+}
+
 void cs_0f66_nullsub() {}
+
+void cs_2d74_open_sal_resource()
+{
+	if (ds_114e < 256) {
+		return;
+	}
+	uint16_t ax = 1; //cs_5e4f(ds_114e);
+	if (ax < 2 && (ds_4732 & 1)) {
+		return;
+	}
+	if (ax > 4) {
+		return;
+	}
+	if (ax == 4) {
+		ax -= 1;
+	}
+	if (ds_144c == ax) {
+		return;
+	}
+	ds_bc6e = (byte*)malloc(64000);
+	memset(ds_bc6e, 0, 64000);
+	cs_f0b9_res_read_by_index_into_buffer(161 + ax, ds_bc6e);
+	cs_0098_adjust_subresource_pointers_IGNORE();
+}
+
+void cs_37b2()
+{
+	TODO;
+	// cs_98e6();
+	// Tail-call by fallthrough
+	cs_37b5();
+}
+
+void cs_37b5()
+{
+	TODO;
+	switch (ds_0004) {
+		case 0x2002:
+			cs_39ec(0x3a);
+			break;
+		case 0x2004:
+			cs_39ec(0x62);
+			break;
+		case 0x200a:
+			cs_39ec(0x61);
+			break;
+	}
+	// cs_39ec(0x3a);
+}
 
 void cs_3916()
 {
@@ -628,6 +807,259 @@ ptr_offset_t cs_3978(uint8_t al, uint8_t bl)
 
 	ds_46d6 = bl;
 	return cs_c1f4(bl) + 6;
+}
+
+void cs_39ec(byte al)
+{
+	TODO;
+	cs_3b59(al);
+}
+
+void cs_3b59(byte al)
+{
+	al -= 1;
+	uint16_t ax = ((uint16_t)al) >> 4;
+	if (ax) {
+		cs_c13e_open_resource_by_index(ax + 19);
+	}
+	ax = ((uint16_t)(al & 0x0f)) << 1;
+
+	ptr_offset_t si = make_ptr_offset(ds_bc6e);
+	si += si.peekle16_at_offset(ax);
+
+	cs_3d83_sal_read_position_markers(si);
+
+	for (;;) {
+		uint16_t cmd = si.readle16();
+		if (cmd == 0xffff) {
+			break;
+		}
+
+		if ((cmd & 0x8000) == 0) {
+			// Draw sprite
+
+			uint16_t x          = si.readbyte() + ((cmd & 0x0200) ? 256 : 0);
+			uint16_t y          = si.readbyte();
+			uint16_t pal_offset = si.readbyte();
+
+			// byte flags = (cmd >> 8);
+			int sprite_index = (cmd & 0x1ff) - 1;
+			if (sprite_index <= 0) {
+				// Marker
+				// printf("MARKER: %04x: (%3x, %02x, %02x)\n", cmd, x, y, pal_offset);
+				// Call draw_sprite from PERS.HSQ
+				continue;
+			}
+
+			cs_c21a_sprite_pal_offset = pal_offset;
+			uint16_t flags_and_id = (cmd & 0xfdff) - 1;
+
+			cs_c22f_draw_sprite(flags_and_id, x, y);
+		} else if ((cmd & 0x4000) == 0) {
+			// Draw polygon
+
+			cs_3be9_draw_polygon(si);
+		} else if ((cmd & 0x4000)) {
+			// Draw line
+
+			uint16_t x0 = si.readle16();
+			uint16_t y0 = si.readle16();
+			uint16_t x1 = si.readle16();
+			uint16_t y1 = si.readle16();
+			byte al = cmd & 0xff;
+			uint16_t bp = 0xffff;
+			rect_t rect = { 0, 0, 320, 152 };
+			vga_1a07_draw_line(ds_dbda_framebuffer_active, x0, y0, x1, y1, al, bp, &rect);
+		}
+	}
+
+	cs_c21a_sprite_pal_offset = 0;
+}
+
+uint16_t *xs0 = nullptr;
+
+void cs_3be9_draw_polygon(ptr_offset_t &si)
+{
+	uint16_t polygon_side_down[200] = { 0 };
+	uint16_t polygon_side_up[200] = { 0 };
+
+	uint16_t cmd = si.peekle16_at_offset(-2);
+
+	int16_t h_gradiant = 16 * si.read_int8();
+	int16_t v_gradiant = 16 * si.read_int8();
+
+	uint16_t start_x = si.readle16();
+	uint16_t start_y = si.readle16();
+
+	// Part 1
+	uint16_t x, y;
+	uint16_t last_x = start_x & 0x3fff;
+	uint16_t last_y = start_y;
+	uint16_t *xs;
+
+	xs0 = xs = polygon_side_down;
+	do {
+		x = si.readle16();
+		y = si.readle16();
+		cs_3e13_add_polygon_section(last_x, last_y, x & 0x3fff, y, start_y, xs);
+		last_x = x & 0x3fff;
+		last_y = y;
+	} while ((x & 0x4000) == 0);
+	uint16_t final_x = last_x;
+	uint16_t final_y = last_y;
+
+	// Part 2
+	last_x = start_x;
+	last_y = start_y;
+	xs0 = xs = polygon_side_up;
+	if ((x & 0x8000) == 0) {
+		do {
+			x = si.readle16();
+			y = si.readle16();
+			cs_3e13_add_polygon_section(last_x, last_y, x & 0x3fff, y, start_y, xs);
+			last_x = x & 0x3fff;
+			last_y = y;
+		} while ((x & 0x8000) == 0);
+	}
+
+	// Part 3
+	cs_3e13_add_polygon_section(last_x, last_y, final_x, final_y, start_y, xs);
+
+	uint16_t bp = !!(cmd & 0x3e00);
+	uint16_t ds_22df = (cmd & 0x3e00) | 2;
+	if ((cmd & 0x0100) == 0) {
+		for (y = 0; y < final_y - start_y; ++y) {
+			int x0 = polygon_side_up[y];
+			int x1 = polygon_side_down[y];
+			if (x1 < x0) {
+				std::swap(x0, x1);
+			}
+			int w = x1 - x0 + 1;
+			uint16_t ax = lo(cmd) << 8;
+			vga_393a_draw_gradient_line_with_noise(x0, y + start_y, w, bp, ds_22df, h_gradiant, ax);
+		}
+	} else {
+		TODO;
+		exit(0);
+	}
+}
+
+void vga_393a_draw_gradient_line_with_noise(int dx_x, int bx_y, int cx_w, uint16_t bp, uint16_t si, uint16_t di, uint16_t color)
+{
+	assert(cx_w > 0);
+
+	bx_y += vga_01a3_y_offset;
+	byte *dst = ds_dbda_framebuffer_active + 320 * bx_y + dx_x;
+
+	do {
+		bool lsb = bp & 1;
+		bp >>= 1;
+		if (lsb) {
+			bp ^= si;
+		}
+
+		byte v = (bp & 3) - 1 + hi(color);
+		color += di;
+
+		int offset = dst - ds_dbda_framebuffer_active;
+
+		*dst++ = lo(v);
+	} while (--cx_w);
+}
+
+void cs_3d83_sal_read_position_markers(ptr_offset_t &r)
+{
+	r.readbyte();
+	TODO;
+}
+
+void cs_3e2f_add_polygon_section_horizontal(uint16_t x0, uint16_t x1, uint16_t y1, uint16_t delta_x, uint16_t *&xs)
+{
+	*xs++ = std::min(x0, x1);
+}
+
+void cs_3e52_add_polygon_section_vertical(uint16_t x0, uint16_t y0, int delta_y, int sign_y, uint16_t *&xs)
+{
+	if (sign_y < 0) {
+		y0 -= delta_y;
+	} else {
+		y0 += delta_y;
+	}
+	int n = delta_y + 1;
+	do {
+		*xs++ = x0;
+	} while (--n);
+}
+
+void cs_3e13_add_polygon_section(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t start_y, uint16_t *&xs)
+{
+	int delta_x = -(x0 - x1);
+	int delta_y = -(y0 - y1);
+
+	if (delta_x == 0 && delta_y == 0) {
+		return;
+	}
+
+	if (delta_y == 0) {
+		cs_3e2f_add_polygon_section_horizontal(x0, x1, y1, delta_x, xs);
+		return;
+	}
+	int sign_y = 1;
+	if (delta_y < 0) {
+		delta_y = -delta_y;
+		sign_y = -sign_y;
+	}
+
+	if (delta_x == 0) {
+		cs_3e52_add_polygon_section_vertical(x0, y0, delta_y, sign_y, xs);
+		return;
+	}
+	int sign_x = 1;
+	if (delta_x < 0) {
+		sign_x = -sign_x;
+		delta_x = -delta_x;
+	}
+
+	int16_t bp_6 = sign_y;
+	int16_t bp_4 = sign_x;
+	int16_t bp_2 = sign_y;
+	int16_t bp_0 = sign_x;
+
+	int minor_delta = delta_y;
+	int major_delta = delta_x;
+
+	if (delta_x > delta_y) {
+		bp_2 = 0;
+	} else {
+		if (delta_y == 0)
+			return;
+		std::swap(minor_delta, major_delta);
+		bp_0 = 0;
+	}
+
+	int16_t ax = major_delta / 2;
+	int16_t cx = major_delta;
+	do {
+		ax += minor_delta;
+
+		int16_t dx, bx;
+		if (ax >= major_delta) {
+			ax -= major_delta;
+			dx = bp_4;
+			bx = bp_6;
+		} else {
+			dx = bp_0;
+			bx = bp_2;
+		}
+
+		dx += x0;
+
+		if (bx == 1) {
+			*xs++ = x0;
+		}
+
+		x0 = dx;
+	} while (--cx);
 }
 
 void cs_4afd()
@@ -808,7 +1240,7 @@ void cs_c1aa_apply_bank_palette(const byte *p)
 	if (ds_dbb4_last_bank_palette == ds_278e_active_bank_id) {
 		return;
 	}
-	cs_c1ba_apply_palette(p);
+	cs_c1ba_apply_palette(p + 2);
 }
 
 void cs_c1ba_apply_palette(const byte *p)
@@ -820,7 +1252,7 @@ void cs_c1ba_apply_palette(const byte *p)
 			v = readle16(p);
 			p += 2;
 
-			if (v != 255) {
+			if (v != 256) {
 				break;
 			}
 			p += 3;
@@ -852,38 +1284,76 @@ ptr_offset_t cs_c1f4(uint16_t ax)
 
 void cs_c21b_draw_sprite_list(sprite_position list[])
 {
-	for (sprite_position *p = list; p->flags_and_id != -1; ++p) {
-		cs_c22f_draw_sprite(p);
+	for (sprite_position *p = list; p->flags_and_id != 0xffff; ++p) {
+		cs_c22f_draw_sprite(p->flags_and_id, p->x, p->y);
 	}
 }
 
-void cs_c22f_draw_sprite(sprite_position *p)
+void decompress_rle_4bpp_image(ptr_offset_t &src, int w, int h, byte *dst) {
+	for (int y = 0; y != h; ++y) {
+		int pitch = 2 * ((w + 3) / 4);
+		do {
+			byte cmd = src.readbyte();
+			int count;
+
+			if (cmd & 0x80) {
+				count = 257 - cmd;
+				byte value = src.readbyte();
+				for (int i = 0; i != count; ++i) {
+					*dst++ = value;
+				}
+			} else {
+				count = cmd + 1;
+				for (int i = 0; i != count; ++i) {
+					*dst++ = src.readbyte();
+				}
+			}
+			pitch -= count;
+		} while (pitch != 0);
+	}
+}
+
+void cs_c22f_draw_sprite(uint16_t flags_and_id, uint16_t x, uint16_t y)
 {
 	byte *dst = ds_dbda_framebuffer_active;
 	ptr_offset_t sprite_data = ds_dbb0_current_resource_ptr;
 
-	uint16_t id = p->flags_and_id & 0x1ff;
+	uint16_t id = flags_and_id & 0x1ff;
 
 	uint16_t offset = sprite_data.peekle16_at_offset(2 * id);
 	sprite_data += offset;
 	uint16_t w0 = sprite_data.readle16();
 	uint16_t w1 = sprite_data.readle16();
 
-	byte flags      = (w0 & 0xfe00) >> 8;
+	byte draw_flags = (flags_and_id >> 8) & 0x60;
+	byte flags      = ((w0 & 0xfe00) >> 8);
 	int  width      = (w0 & 0x01ff);
 	int  height     = (w1 & 0x00ff);
 	byte pal_offset = (w1 & 0xff00) >> 8;
+
+	flags |= draw_flags;
 
 	if (cs_c21a_sprite_pal_offset != 0) {
 		pal_offset = cs_c21a_sprite_pal_offset;
 	}
 
-	if ((p->flags_and_id & 0x1c00) == 0) {
-		vga_0f5b_blit(dst, p->x, p->y, sprite_data, width, height, flags, pal_offset);
+	if ((flags_and_id & 0x1c00) == 0) {
+		vga_0f5b_blit(dst, x, y, sprite_data, width, height, flags, pal_offset);
 		return;
 	}
 
-	TODO;
+	byte scale = (flags_and_id & 0x1c00) >> 10;
+	uint16_t scale_factors[8] = { 0x100, 0x120, 0x140, 0x160, 0x180, 0x1C0, 0x200, 0x280 };
+	uint16_t scale_factor_fp = scale_factors[scale];
+
+	uint16_t dst_w = (width  << 8) / scale_factor_fp;
+	uint16_t dst_h = (height << 8) / scale_factor_fp;
+
+	int pitch = 2 * ((width + 3) / 4);
+	byte *tmp = new byte[height * pitch];
+	decompress_rle_4bpp_image(sprite_data, width, height, tmp);
+
+	draw_scaled(tmp, pitch, x, y, dst_w, dst_h, flags, pal_offset, scale_factor_fp);
 }
 
 void cs_c4cd_gfx_copy_framebuf_to_screen() {
@@ -1500,26 +1970,42 @@ void cs_ceb0_hnm(uint16_t id)
 	// }
 }
 
-void  cs_cefc_load_irulan_hnm()
+void cs_cefc_load_irulan_hnm()
 {
-	TODO; // Load subtitles
+	cs_c13e_open_resource_by_index(ds_ceeb_language_setting + 105);
+	ds_3622_subtitle_next_frame = &ds_35a8_subtitle_frames_irulan[0];
 	vga_0c06_set_y_offset(0);
 	cs_c0ad_gfx_clear_active_framebuffer();
 	cs_ca1b_hnm_load(25);
 }
 
-void  cs_cf1b_play_irulan_hnm()
+void cs_cf1b_play_irulan_hnm()
 {
 	byte *old_active_frame_buffer = ds_dbda_framebuffer_active;
 	cs_c08e_set_screen_as_active_framebuffer();
 
 	do {
+		if (*ds_3622_subtitle_next_frame <= ds_dbe8_hnm_frame_counter) {
+			cs_cf4b_subtitle_draw_or_clear();
+		}
+
 		if (!cs_c9e8_hnm_do_frame_skippable()) {
 			return;
 		}
 	} while (!cs_cc85_hnm_is_complete());
 
 	ds_dbda_framebuffer_active = old_active_frame_buffer;
+}
+
+void cs_cf4b_subtitle_draw_or_clear()
+{
+	ds_3622_subtitle_next_frame++;
+	uint16_t index = ds_3622_subtitle_next_frame - ds_35a8_subtitle_frames_irulan;
+	if (index % 2) {
+		cs_c22f_draw_sprite(index / 2, 0, 190);
+	} else {
+		memset(ds_dbd8_framebuffer_screen + 190 * 320, 0, 18 * 320);
+	}
 }
 
 void cs_d9d2_process_frame_tasks()
@@ -1613,6 +2099,11 @@ bool cs_ddf0_wait_voice_interruptable(uint16_t fallback_wait_ticks)
 	// TODO: Check PCM voice
 
 	return cs_ddb0_wait_interruptable(fallback_wait_ticks);
+}
+
+void cs_de0c(uint16_t bx)
+{
+
 }
 
 bool cs_e675_dat_open()
@@ -1996,7 +2487,6 @@ uint16_t cs_f3d3_maybe_uncompress_hsq(byte *buffer)
 	for (int i = 0; i != 6; ++i) {
 		checksum += buffer[i];
 	}
-	// printf("CHECKSUM: 0x%02x\n", checksum);
 	if (checksum == 0xab) {
 		ptr_offset_t c = make_ptr_offset(buffer);
 		uint16_t unpacked_size = c.readle16();
@@ -2203,6 +2693,118 @@ void vga_0c06_set_y_offset(uint8_t y)
 	vga_01a3_y_offset = y;
 }
 
+static inline
+void rol_u16(uint16_t &v)
+{
+	uint16_t carry = (v & 0x8000) >> 15;
+	v <<= 1;
+	v |= carry;
+}
+
+void vga_1a07_draw_line(byte *dst, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, byte al, uint16_t bp, rect_t *rect)
+{
+	int16_t delta_x = -(x0 - x1);
+	int16_t delta_y = -(y0 - y1);
+	vga_1adc_draw_line(dst, x0, y0, delta_x, delta_y, al, bp, rect);
+}
+
+void vga_1a3a_draw_line_horizontal(byte *dst, uint16_t x0, uint16_t y0, int16_t delta_x, byte al, uint16_t bp, rect_t *rect)
+{
+	int y = y0;
+	int x = x0;
+	int len = delta_x;
+
+	if (len < 0) {
+		x = x0 + len;
+		len = -len;
+	}
+
+	if (y <  rect->y0) return;
+	if (y >= rect->y1) return;
+
+	len += 1;
+	do {
+		rol_u16(bp);
+		if (bp & 1 && x >= rect->x0 && x < rect->x1) {
+			dst[320 * (y + vga_01a3_y_offset) + x] = al;
+		}
+		x += 1;
+	} while (--len);
+}
+
+void vga_1a86_draw_line_vertical(byte *dst, uint16_t x0, uint16_t y0, int16_t delta_y, byte al, uint16_t bp, rect_t *rect)
+{
+	TODO;
+	exit(0);
+}
+
+void vga_1adc_draw_line(byte *dst, uint16_t x0, uint16_t y0, int16_t delta_x, int16_t delta_y, byte al, uint16_t bp, rect_t *si)
+{
+	if (delta_y == 0) {
+		vga_1a3a_draw_line_horizontal(dst, x0, y0, delta_x, al, bp, si);
+		return;
+	}
+	int sign_y = 1;
+	if (delta_y < 0) {
+		delta_y = -delta_y;
+		sign_y = -sign_y;
+	}
+
+	if (delta_x == 0) {
+		vga_1a86_draw_line_vertical(dst, x0, y0, delta_y, al, bp, si);
+		return;
+	}
+	int sign_x = 1;
+	if (delta_x < 0) {
+		sign_x = -sign_x;
+		delta_x = -delta_x;
+	}
+
+	int16_t bp_6 = sign_y;
+	int16_t bp_4 = sign_x;
+	int16_t bp_2 = sign_y;
+	int16_t bp_0 = sign_x;
+
+	int minor_delta = delta_y;
+	int major_delta = delta_x;
+
+	if (delta_x > delta_y) {
+		bp_2 = 0;
+	} else {
+		if (delta_y == 0)
+			return;
+
+		std::swap(minor_delta, major_delta);
+		bp_0 = 0;
+	}
+
+	int16_t ax = major_delta / 2;
+	int16_t cx = major_delta;
+	do {
+		ax += minor_delta;
+
+		int16_t dx, bx;
+		if (ax >= major_delta) {
+			ax -= major_delta;
+			dx = bp_4;
+			bx = bp_6;
+		} else {
+			dx = bp_0;
+			bx = bp_2;
+		}
+
+		dx += x0;
+		bx += y0;
+		x0 = dx;
+		y0 = bx;
+
+		rol_u16(bp);
+		if ((bp & 1) && dx >= si->x0 && bx >= si->y0 && dx < si->x1 && bx < si->y1) {
+			dst[320 * (bx + vga_01a3_y_offset) + dx] = al;
+		}
+	} while (--cx);
+}
+
 void vga_1b7c_copy_framebuffer(byte *dst, byte *src)
 {
 	memcpy(dst, src, 320 * 200);
@@ -2229,8 +2831,8 @@ void vga_1be7_copy_game_area(byte *dst, byte *src)
 
 void vga_0f5b_blit(byte *dst, int dst_x, int dst_y, ptr_offset_t src, int width, int height, uint8_t flags, uint8_t mode)
 {
-	bool flip_x = flags & 0x20;
-	bool flip_y = flags & 0x40;
+	bool flip_x = flags & 0x40;
+	bool flip_y = flags & 0x20;
 
 	dst_y += vga_01a3_y_offset;
 
@@ -2260,7 +2862,7 @@ void write_pixel(byte *dst, int x, int y, uint8_t v)
 void draw_4bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x, int dst_y, int w, int h, uint8_t mode)
 {
 	for (int y = 0; y != h; ++y) {
-		int line_remain = w;
+		int line_remain = 4 * ((w + 3) / 4);
 		int x = !flip_x ? 0 : w - 1;
 
 		do {
@@ -2268,11 +2870,11 @@ void draw_4bpp(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int dst_x
 			byte p1 = (value & 0x0f);
 			byte p2 = (value >> 4);
 			if (p1) {
-				write_pixel(dst, dst_x + x, dst_y + y, p1 + value);
+				write_pixel(dst, dst_x + x, dst_y + y, p1 + mode);
 			}
 			ADVANCE(x);
 			if (p2) {
-				write_pixel(dst, dst_x + x, dst_y + y, p2 + value);
+				write_pixel(dst, dst_x + x, dst_y + y, p2 + mode);
 			}
 			ADVANCE(x);
 			line_remain -= 2;
@@ -2285,7 +2887,7 @@ void draw_4bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int d
 	int src_x = 0, src_y = 0;
 
 	for (int y = 0; y != h; ++y) {
-		int line_remain = w;
+		int line_remain = 4 * ((w + 3) / 4);
 		int x = !flip_x ? 0 : w - 1;
 
 		do {
@@ -2385,6 +2987,48 @@ void draw_8bpp_rle(byte *dst, bool flip_x, bool flip_y, ptr_offset_t &src, int d
 				line_remain -= count;
 			}
 		} while (line_remain > 0);
+	}
+}
+
+void draw_scaled(
+	byte *src, uint16_t src_pitch,
+	int dst_x, int dst_y,
+	int dst_w, int dst_h, byte flags,
+	byte pal_offset, uint16_t src_delta_fp)
+{
+	byte *dst = ds_dbda_framebuffer_active;
+
+	bool flip_x = flags & 0x40;
+	bool flip_y = flags & 0x20;
+
+	if (flip_x) {
+		dst_x += dst_w - 1;
+	}
+	if (flip_y) {
+		dst_y += dst_h - 1;
+	}
+
+	// Source coordinates in 8.8 fixed point
+	uint16_t src_x_fp = 0;
+	uint16_t src_y_fp = 0;
+
+	for (int y = 0; y != dst_h; y++, src_y_fp += src_delta_fp) {
+		byte *p = &dst[320 * (y + dst_y + vga_01a3_y_offset) + dst_x];
+		uint16_t src_y = (src_y_fp >> 8);
+		src_x_fp = 0;
+		for (int dst_x = 0; dst_x != dst_w; dst_x++, src_x_fp += src_delta_fp) {
+			uint16_t src_x = (src_x_fp >> 8);
+
+			byte value = src[src_y * src_pitch + src_x / 2];
+			if (src_x & 1) {
+				value >>= 4;
+			}
+			value &= 0x0f;
+			if (value != 0) {
+				*p = value + pal_offset;
+			}
+			ADVANCE(p);
+		}
 	}
 }
 

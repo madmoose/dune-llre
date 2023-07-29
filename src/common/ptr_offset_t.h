@@ -60,6 +60,13 @@ struct ptr_offset_t {
 		return v;
 	}
 
+	int8_t read_int8()
+	{
+		byte v = ::readbyte(ptr());
+		m_offset += 1;
+		return (int8_t)(v - INT8_MIN) + INT8_MIN;
+	}
+
 	void writebyte(byte v)
 	{
 		::writebyte(ptr(), v);
@@ -72,13 +79,20 @@ struct ptr_offset_t {
 		return v;
 	}
 
-	uint16_t peekle16_at_offset(uint16_t offset)
+	uint16_t peekle16_at_offset(int offset)
 	{
 		uint16_t v = ::readle16(ptr() + offset);
 		return v;
 	}
 
 	uint16_t readle16()
+	{
+		uint16_t v = ::readle16(ptr());
+		m_offset += 2;
+		return v;
+	}
+
+	int16_t readle16i()
 	{
 		uint16_t v = ::readle16(ptr());
 		m_offset += 2;
